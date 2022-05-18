@@ -57,9 +57,9 @@ struct Primitive {
 };
 
 struct Material {
-    glm::vec3 ambient; int padA;
-    glm::vec3 diffuse; int padB;
-    glm::vec3 specular; int padC;
-    glm::vec3 emission; int padD;
+    alignas(4) glm::vec3 ambient; //int padA;
+    alignas(4) glm::vec3 diffuse; //int padB;
+    alignas(4) glm::vec3 specular; //int padC;
+    alignas(4) glm::vec3 emission; //int padD;
     int diffuse_idx;
 };

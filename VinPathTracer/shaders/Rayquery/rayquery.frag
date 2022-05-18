@@ -72,5 +72,5 @@ void main() {
         directColor=vec3(0.0,0.0,0.0);
     }
 
-    outColor = vec4(directColor+diffuseColor.xyz*0.01f,1.0f);
+    outColor = vec4(directColor+diffuseColor.xyz*0.00f,1.0f);
 }

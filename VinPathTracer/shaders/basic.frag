@@ -22,8 +22,11 @@ layout(location = 0) out vec4 outColor;
 void main() {
     vec4 diffuseColor;
     int diffuse_id=materialIndexBuffer.data[gl_PrimitiveID].diffuse_idx;
+    uint material_id=materialIndexBuffer.data[gl_PrimitiveID].material_id;
+    //diffuse_id=materialBuffer.data[material_id].diffuse_idx;
     if(diffuse_id==-1){
-        diffuseColor=vec4(materialBuffer.data[diffuse_id].diffuse,1.0f);
+        //diffuseColor=vec4(0.0,1.0,0.0,1.0f);
+        diffuseColor=vec4(materialBuffer.data[material_id].diffuse,1.0);
     }
     else{
         diffuseColor=texture(textures[diffuse_id], fragTexCoord);

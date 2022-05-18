@@ -74,8 +74,9 @@ VkApplication::VkApplication()
     ubo.quadArealignt.B = glm::vec4(-953.0f, 1259.0f, 207.0f, 1.0f);
     ubo.quadArealignt.C = glm::vec4(751.0f, 1333.0f, 115.0f, 1.0f);
     ubo.quadArealignt.C = glm::vec4(787.0f, 1333.0f, -195.0f, 1.0f);
-    //camera.pos = glm::vec3(0.125f, 0.125f, 0.125f);
-    camera.pos = glm::vec3(100.0f, 100.0f, 100.0f);
+    //camera.pos = glm::vec3(0.125f, 0.125f, 0.125f);  //sponza
+    camera.pos = glm::vec3(100.0f, 100.0f, 100.0f);    //bathroom
+    camera.pos = glm::vec3(11.19, 9.25, 20.89);
     camera.target = glm::vec3(0.0f, 0.0f, 0.0f);
     camera.front= glm::vec3(0.0f, 0.0f, 1.0f);
     camera.up= glm::vec3(0.0f, 1.0f, 0.0f);
@@ -907,7 +908,7 @@ void VkApplication::loadModel() {
                 uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
                 vertices.push_back(vertex);
             }
-
+            
             indices.push_back(uniqueVertices[vertex]);
         }
         for (const auto& mat_id : shape.mesh.material_ids) { //遍历每个片元（Loop over faces）
@@ -1160,7 +1161,7 @@ void VkApplication::createCommandBuffers() {
 
 void VkApplication::createMaterialsBuffer()
 {
-    VkDeviceSize indexBufferSize = sizeof(uint32_t) * primitives.size();  //总三角形面数
+    VkDeviceSize indexBufferSize = sizeof(Primitive) * primitives.size();  //总三角形面数
 
     VkBuffer indexStagingBuffer;
     VkDeviceMemory indexStagingBufferMemory;

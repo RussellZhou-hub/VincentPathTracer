@@ -18,7 +18,10 @@ RayQueryApp::RayQueryApp()
 {
 	addRayQueryExtension();
     setModelPath("sponza");
+    //setModelPath("bathroom-blender"); //camera.pos=vec3(11.19,9.25,20.89);
+    
     setShaderFileName("Rayquery/rayquery.vert.spv", "Rayquery/rayquery.frag.spv");
+    //setShaderFileName("basic.vert.spv", "basic.frag.spv");
 }
 
 void RayQueryApp::run()
