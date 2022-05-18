@@ -1,9 +1,14 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "includes/types.glsl"
 
 layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;
+    QuadArealignt qLight;
+    vec4 cameraPos;
+    uint frameCount;
 } ubo;
 
 layout(location = 0) in vec3 inPosition;

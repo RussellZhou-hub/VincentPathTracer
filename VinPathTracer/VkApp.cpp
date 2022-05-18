@@ -74,9 +74,9 @@ VkApplication::VkApplication()
     ubo.quadArealignt.B = glm::vec4(-953.0f, 1259.0f, 207.0f, 1.0f);
     ubo.quadArealignt.C = glm::vec4(751.0f, 1333.0f, 115.0f, 1.0f);
     ubo.quadArealignt.C = glm::vec4(787.0f, 1333.0f, -195.0f, 1.0f);
-    //camera.pos = glm::vec3(0.125f, 0.125f, 0.125f);  //sponza
-    camera.pos = glm::vec3(100.0f, 100.0f, 100.0f);    //bathroom
-    camera.pos = glm::vec3(11.19, 9.25, 20.89);
+    //camera.pos = glm::vec3(0.125f, 0.125f, 0.125f);  
+    camera.pos = glm::vec3(100.0f, 100.0f, 100.0f);    //sponza
+    //camera.pos = glm::vec3(11.19, 9.25, 20.89);//bathroom
     camera.target = glm::vec3(0.0f, 0.0f, 0.0f);
     camera.front= glm::vec3(0.0f, 0.0f, 1.0f);
     camera.up= glm::vec3(0.0f, 1.0f, 0.0f);
@@ -529,6 +529,8 @@ void VkApplication::createDescriptorSetLayout() {
     }
     bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT));
     bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT));
+    //bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));//vertex buffer
+    //bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));//index buffer
 
     VkDescriptorSetLayoutCreateInfo layoutInfo= vkinit::descriptorSetLayout_create_info(static_cast<uint32_t>(bindings.size()), bindings.data());
     VK_CHECK(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout), "failed to create descriptor set layout!");
@@ -931,7 +933,7 @@ void VkApplication::createVertexBuffer() {
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+    createBuffer(bufferSize, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR|VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
     void* data;
     vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
@@ -958,7 +960,7 @@ void VkApplication::createIndexBuffer() {
     memcpy(data, indices.data(), (size_t)bufferSize);
     vkUnmapMemory(device, stagingBufferMemory);
 
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+    createBuffer(bufferSize, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR|VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
 
     copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
@@ -1015,7 +1017,10 @@ void VkApplication::createDescriptorSets() {
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &materialIndexBufferInfo));
         VkDescriptorBufferInfo materialBufferInfo = vkinit::buffer_info(materialBuffer);
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &materialBufferInfo));
-        //descriptorWrites.
+        //VkDescriptorBufferInfo vertexBufferInfo = vkinit::buffer_info(vertexBuffer);
+        //descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &vertexBufferInfo));
+        //VkDescriptorBufferInfo indexBufferInfo = vkinit::buffer_info(indexBuffer);
+        //descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &indexBufferInfo));
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
@@ -1269,6 +1274,7 @@ void VkApplication::updateUniformBuffer(uint32_t currentImage) {
 
     //ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.frameCount++;
+    ubo.cameraPos = glm::vec4(camera.pos,1.0f);
     ubo.model = glm::mat4(1.0f);
     ubo.view = glm::lookAt(camera.pos, camera.pos+camera.front, camera.up);
     ubo.proj = glm::perspective(glm::radians(camera.fov), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10000.0f);

@@ -34,11 +34,20 @@ vec3 RandomInUnitSphere(inout uint seed)
 	return pos;
 }
 
-float random(vec2 uv, float seed) {     // 0µ½1µÄËæ»úÊı
+float random(vec2 uv, float seed) {     // 0åˆ°1çš„éšæœºæ•°
   return fract(sin(mod(dot(uv, vec2(12.9898, 78.233)) + 1113.1 * seed, pi)) * 43758.5453);
 }
 
-vec3 get_Random_QuadArea_Light_Pos(vec3 A,vec3 B,vec3 C,vec3 D,uint randomIndex){    //²ÎÊı±ØĞë¶ÔÆë£¬ÕâÀïuint²ÎÊı²»ÄÜ·ÅÇ°Ãæ  intĞèÒªN£¬vec3ºÍvec4ĞèÒª4N ËùÒÔvec4²»ÄÜ½ÓÔÚintºóÃæ
+float random(vec2 p) 
+{ 
+    vec2 K1 = vec2(
+     23.14069263277926, // e^pi (Gelfond's constant) 
+     2.665144142690225 // 2^sqrt(2) (GelfondSchneider constant) 
+    ); 
+    return fract(cos(dot(p,K1)) * 12345.6789); 
+} 
+
+vec3 get_Random_QuadArea_Light_Pos(vec3 A,vec3 B,vec3 C,vec3 D,uint randomIndex){    //å‚æ•°å¿…é¡»å¯¹é½ï¼Œè¿™é‡Œuintå‚æ•°ä¸èƒ½æ”¾å‰é¢  intéœ€è¦Nï¼Œvec3å’Œvec4éœ€è¦4N æ‰€ä»¥vec4ä¸èƒ½æ¥åœ¨intåé¢
 
     vec2 uv = vec2(random(gl_FragCoord.xy, randomIndex), random(vec2(gl_FragCoord.y,gl_FragCoord.x), randomIndex) );
 

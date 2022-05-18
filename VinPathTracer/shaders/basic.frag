@@ -8,6 +8,7 @@
 
 #include "includes/types.glsl"
 
+
 layout(binding = 1) uniform sampler2D texSampler;
 layout (binding = 2) uniform sampler2D textures[];
 layout(binding = 3) buffer MaterialIndexBuffer { Primitive data[]; } materialIndexBuffer;
