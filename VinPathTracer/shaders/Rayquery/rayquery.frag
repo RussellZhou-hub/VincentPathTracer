@@ -24,8 +24,8 @@ layout (binding = 2) uniform sampler2D textures[];
 layout(binding = 3) buffer MaterialIndexBuffer { Primitive data[]; } materialIndexBuffer;
 layout(binding = 4) buffer MaterialBuffer { Material data[]; } materialBuffer;
 layout(binding = 5) uniform accelerationStructureEXT topLevelAS;
-//layout(binding = 6) buffer VertexBuffer { Vertex data[]; } vertexBuffer;
-//layout(binding = 7) buffer IndexBuffer { uint data[]; } indexBuffer;
+layout(binding = 6) buffer VertexBuffer { Vertex data[]; } vertexBuffer;
+layout(binding = 7) buffer IndexBuffer { uint data[]; } indexBuffer;
 
 layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec3 fragNormal;
