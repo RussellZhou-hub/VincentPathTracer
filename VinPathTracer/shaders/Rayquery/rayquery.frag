@@ -142,7 +142,7 @@ void main() {
             else {
                 rayActive = false;
             }
-            /*
+            
             //vec3 hemisphere = uniformSampleHemisphere(vec2(random(gl_FragCoord.xy, ubo.frameCount + rayDepth), random(gl_FragCoord.xy, ubo.frameCount + rayDepth + 1)));
             //vec3 alignedHemisphere = alignHemisphereWithCoordinateSystem(hemisphere, extensionNormal);
 
@@ -150,11 +150,11 @@ void main() {
             rayOrigin = extensionPosition;
             //rayDirection = alignedHemisphere;
             previousNormal = extensionNormal;
-
+            /*
             //RayHitPointFragCoord=getFragCoord(interpolatedPosition.xyz);
             //RayHitPointFragCoord=getFragCoord(extensionPosition.xyz);
             */
-            indirectColor=extensionSurfaceColor;
+            //indirectColor=extensionSurfaceColor;
         }
         
         else {  //secondary ray not hit
