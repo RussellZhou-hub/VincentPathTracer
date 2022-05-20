@@ -766,6 +766,7 @@ VkPipelineMultisampleStateCreateInfo vkinit::multisampleState_create_info(VkSamp
 VkPipelineDepthStencilStateCreateInfo vkinit::depthStencil_create_info(VkBool32 stencilTestEnable, VkBool32 depthBoundsTestEnable, VkBool32 depthWriteEnable, VkBool32 depthTestEnable, VkCompareOp depthCompareOp)
 {
 	VkPipelineDepthStencilStateCreateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	info.stencilTestEnable = stencilTestEnable;
 	info.depthBoundsTestEnable = depthBoundsTestEnable;
 	info.depthCompareOp = depthCompareOp;
@@ -819,6 +820,7 @@ VkPipelineShaderStageCreateInfo vkinit::ShaderStage_info(VkShaderStageFlagBits s
 VkGraphicsPipelineCreateInfo vkinit::graphicsPipeline_create_info(uint32_t stageCount, const VkPipelineShaderStageCreateInfo* pStages, const VkPipelineVertexInputStateCreateInfo* pVertexInputState, const VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState, const VkPipelineViewportStateCreateInfo* pViewportState, const VkPipelineRasterizationStateCreateInfo* pRasterizationState, const VkPipelineMultisampleStateCreateInfo* pMultisampleState, const VkPipelineDepthStencilStateCreateInfo* pDepthStencilState, const VkPipelineColorBlendStateCreateInfo* pColorBlendState, VkPipelineLayout layout, VkRenderPass renderPass, uint32_t subpass, VkPipeline basePipelineHandle)
 {
 	VkGraphicsPipelineCreateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	info.stageCount = stageCount;
 	info.pStages = pStages;
 	info.pVertexInputState = pVertexInputState;
