@@ -335,7 +335,10 @@ void RayQueryApp::createTopLevelAccelerationStructure()
     VkDeviceMemory instancesDeviceMemory;
     createBuffer(sizeof(VkAccelerationStructureInstanceKHR), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, instancesBuffer, instancesDeviceMemory);
-
+    void* data;
+    vkMapMemory(device, instancesDeviceMemory, 0, sizeof(VkAccelerationStructureInstanceKHR), 0, &data);
+    memcpy(data, &instance, sizeof(VkAccelerationStructureInstanceKHR));
+    vkUnmapMemory(device, instancesDeviceMemory);
 
 
     VkDeviceOrHostAddressConstKHR instanceDataDeviceAddress{};
