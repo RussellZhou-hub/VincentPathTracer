@@ -35,6 +35,8 @@ public:
 	
 
 	void initVulkan();
+	void mainLoop();
+	void drawFrame();
 	void addRayQueryExtension();
 	void setModelPath(std::string path);
 	void createLogicalDevice();
@@ -42,9 +44,18 @@ public:
 	void createDescriptorPool();
 	void createDescriptorSetLayout();
 	void createDescriptorSets();
+	void createAttachments();
+	void createFramebuffers();
+	void createGraphicsPipeline();
+	void createRenderPass();
+	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	uint64_t getBufferDeviceAddress(VkBuffer buffer);
 	void createBottomLevelAccelerationStructure();
 	void createTopLevelAccelerationStructure();
+
+	//attachment stuff
+	std::vector<Attachment> inPutAttachments;
+	std::vector<Attachment> outPutAttachments;
 
 	// Function pointers for ray tracing related stuff
 	PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR;

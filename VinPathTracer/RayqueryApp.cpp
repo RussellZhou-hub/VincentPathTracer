@@ -2,6 +2,8 @@
 #include "vk_initializers.h"
 #include"VulkanDevice.h"
 #include"VulkanTools.h"
+#include "Utils.h"
+//#include "stb_image.h"
 //#include"VkApp.h"
 
 #define VK_CHECK_RESULT(f)																				\
@@ -62,6 +64,116 @@ void RayQueryApp::initVulkan()
     createDescriptorSets();
     createCommandBuffers();
     createSyncObjects();
+}
+
+void RayQueryApp::mainLoop()
+{
+    while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+
+        {
+            setIcon();
+
+            if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+                glfwSetWindowShouldClose(window, true);
+
+            glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_CURSOR_DISABLED);
+            //glfwSetCursorPosCallback(window, (GLFWcursorposfun)mouse_callback);
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+            mouse_callback(window, xpos, ypos);
+            glfwSetScrollCallback(window, scroll_callback);
+            glfwSetMouseButtonCallback(window, mouse_button_callback);
+            scroll_process();
+
+            const float cameraSpeed = 100.0f * camera.getDeltaTime(glfwGetTime()); // adjust accordingly
+            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+                camera.pos += cameraSpeed * camera.front;
+                ubo.frameCount = 1; //camera moved
+            }
+            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+                camera.pos -= cameraSpeed * camera.front;
+                ubo.frameCount = 1; //camera moved
+            }
+
+            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+                camera.pos -= glm::normalize(glm::cross(camera.front, camera.up)) * cameraSpeed;
+                ubo.frameCount = 1; //camera moved
+            }
+
+            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+                camera.pos += glm::normalize(glm::cross(camera.front, camera.up)) * cameraSpeed;
+                ubo.frameCount = 1; //camera moved
+            }
+        }
+        drawFrame();
+    }
+
+    vkDeviceWaitIdle(device);
+}
+
+
+void RayQueryApp::drawFrame()
+{
+    vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+
+    uint32_t imageIndex;
+    VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapChain();
+        return;
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    updateUniformBuffer(currentFrame);
+
+    vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
+    vkResetCommandBuffer(commandBuffers[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+
+    VkSubmitInfo submitInfo = vkinit::submit_info(&commandBuffers[currentFrame]);
+
+    VkSemaphore waitSemaphores[] = { imageAvailableSemaphores[currentFrame] };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+
+    VkSemaphore signalSemaphores[] = { renderFinishedSemaphores[currentFrame] };
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to submit draw command buffer!");
+    }
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+
+    VkSwapchainKHR swapChains[] = { swapChain };
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+
+    presentInfo.pImageIndices = &imageIndex;
+
+    result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
+        framebufferResized = false;
+        recreateSwapChain();
+    }
+    else if (result != VK_SUCCESS) {
+        throw std::runtime_error("failed to present swap chain image!");
+    }
+
+    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void RayQueryApp::addRayQueryExtension()
@@ -221,6 +333,165 @@ void RayQueryApp::createDescriptorSets()
         
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+    }
+}
+
+void RayQueryApp::createAttachments()  //create color attachments not including depth attachment
+{
+    for (auto i = 0; i < 6; i++) {
+        Attachment attach;
+        attach.format = swapChainImageFormat;
+        createImage(WIDTH, HEIGHT, attach.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, attach.image , attach.imageMemory);
+        attach.imageView=createImageView(attach.image, attach.format, VK_IMAGE_ASPECT_COLOR_BIT);
+        outPutAttachments.push_back(attach);
+
+        Attachment attach_input;
+        attach_input.format = swapChainImageFormat;
+        createImage(WIDTH, HEIGHT, attach_input.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, attach_input.image, attach_input.imageMemory);
+        attach_input.imageView = createImageView(attach_input.image, attach_input.format, VK_IMAGE_ASPECT_COLOR_BIT);
+        inPutAttachments.push_back(attach_input);
+    }
+}
+
+void RayQueryApp::createFramebuffers()
+{
+    swapChainFramebuffers.resize(swapChainImageViews.size());
+
+    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+        std::vector<VkImageView> attachments;
+        attachments.push_back(swapChainImageViews[i]);
+        for (auto i = 1; i < outPutAttachments.size(); i++) {
+            attachments.push_back(outPutAttachments[i].imageView);
+        }
+        attachments.push_back(depthImageView);
+
+        VkFramebufferCreateInfo framebufferInfo = vkinit::framebuffer_create_info(renderPass, static_cast<uint32_t>(attachments.size()), attachments.data(), swapChainExtent.width, swapChainExtent.height);
+
+        if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create framebuffer!");
+        }
+    }
+}
+
+void RayQueryApp::createGraphicsPipeline()
+{
+#ifdef _DEBUG
+    std::string baseDir("C:/Users/Rocki/source/repos/VinPathTracer/VinPathTracer/shaders/");
+#else
+    std::string baseDir("shaders/");
+#endif
+    auto vertShaderCode = readFile(baseDir + vertShaderName);
+    auto fragShaderCode = readFile(baseDir + fragShaderName);
+
+
+    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo = vkinit::ShaderStage_info(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule);
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo = vkinit::ShaderStage_info(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderModule);
+    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo = vkinit::vertexInputState_create_info(&bindingDescription, attributeDescriptions.data(), 1, static_cast<uint32_t>(attributeDescriptions.size()));
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly = vkinit::inputAssembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE);
+
+    VkViewport viewport = vkinit::viewport_des(0.0f, 0.0f, (float)swapChainExtent.width, (float)swapChainExtent.height, 0.0f, 1.0f);
+    VkRect2D scissor = vkinit::scissor({ 0, 0 }, swapChainExtent);
+
+    VkPipelineViewportStateCreateInfo viewportState = vkinit::viewportState_create_info(&viewport, &scissor);
+    VkPipelineRasterizationStateCreateInfo rasterizer = vkinit::rasterizationState_create_info();
+    VkPipelineMultisampleStateCreateInfo multisampling = vkinit::multisampleState_create_info();
+    VkPipelineDepthStencilStateCreateInfo depthStencil = vkinit::depthStencil_create_info();
+
+    VkPipelineColorBlendAttachmentState* pColorBlendAttachmentState = (VkPipelineColorBlendAttachmentState*)malloc(outPutAttachments.size() * sizeof(VkPipelineColorBlendAttachmentState));
+    for (auto i = 0; i < outPutAttachments.size(); i++) {
+        pColorBlendAttachmentState[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        pColorBlendAttachmentState[i].blendEnable = VK_FALSE;
+    }
+
+    float blendConstants[4] = { 0.0,0.0,0.0,0.0 };
+    VkPipelineColorBlendStateCreateInfo colorBlending = vkinit::colorBlendState_create_info(outPutAttachments.size(), pColorBlendAttachmentState, blendConstants);
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkinit::pipelineLayout_create_info(1, &descriptorSetLayout);
+
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create pipeline layout!");
+    }
+
+    VkGraphicsPipelineCreateInfo pipelineInfo = vkinit::graphicsPipeline_create_info(2, shaderStages, &vertexInputInfo, &inputAssembly, &viewportState,
+        &rasterizer, &multisampling, &depthStencil, &colorBlending, pipelineLayout, renderPass, 0);
+
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create graphics pipeline!");
+    }
+
+    vkDestroyShaderModule(device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+}
+
+void RayQueryApp::createRenderPass()
+{
+    VkAttachmentDescription colorAttachment = vkinit::colorAttachment_des(swapChainImageFormat, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    VkAttachmentDescription colorAttachment_2 = vkinit::colorAttachment_des(swapChainImageFormat, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    VkAttachmentDescription depthAttachment = vkinit::depthAttachment_des(findDepthFormat());
+
+    createAttachments();
+    VkAttachmentReference* colorAttachmentRef = (VkAttachmentReference*)malloc(outPutAttachments.size() * sizeof(VkAttachmentReference));
+    for (auto i = 0; i < outPutAttachments.size(); i++) {
+        colorAttachmentRef[i].attachment = i;  //location in fragment shader
+        colorAttachmentRef[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    };
+
+    VkAttachmentReference depthAttachmentRef{};
+    depthAttachmentRef.attachment = outPutAttachments.size();
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass = vkinit::subpass_des(outPutAttachments.size(), colorAttachmentRef, &depthAttachmentRef);
+
+    VkSubpassDependency dependency = vkinit::dependency_des(0);
+
+    std::vector<VkAttachmentDescription> attachments;
+    for (auto i = 0; i < outPutAttachments.size(); i++) {
+        attachments.push_back(colorAttachment_2);
+    }
+    attachments.push_back(depthAttachment);
+    attachments[0] = colorAttachment;
+    VkRenderPassCreateInfo renderPassInfo = vkinit::renderPass_create_info(static_cast<uint32_t>(attachments.size()), attachments.data(), 1, &subpass, 1, &dependency);
+
+    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create render pass!");
+    }
+}
+
+void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+        throw std::runtime_error("failed to begin recording command buffer!");
+    }
+    VkRenderPassBeginInfo renderPassInfo = vkinit::renderPass_begin_info(renderPass, swapChainFramebuffers[imageIndex], swapChainExtent, outPutAttachments.size()+1);
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+    VkBuffer vertexBuffers[] = { vertexBuffer };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+    vkCmdEndRenderPass(commandBuffer);
+
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to record command buffer!");
     }
 }
 

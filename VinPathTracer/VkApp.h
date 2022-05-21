@@ -219,6 +219,7 @@ public:
     }
     void initWindow();
     void initVulkan();
+    void setIcon();
     void mainLoop();
     void cleanup();
     void cleanupSwapChain();

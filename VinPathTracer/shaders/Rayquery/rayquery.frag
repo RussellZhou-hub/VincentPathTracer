@@ -33,6 +33,12 @@ layout(location = 2) in vec3 interpolatedPosition;
 layout(location = 3) in vec2 fragTexCoord;
 
 layout(location = 0) out vec4 outColor;
+layout(location = 1) out vec4 outDirectIr;
+layout(location = 2) out vec4 outIndAlbedo;
+layout(location = 3) out vec4 outIndIr;
+layout(location = 4) out vec4 outNormal;
+layout(location = 5) out vec4 outWorldPos;
+layout(location = 6) out vec4 outDepth;
 
 void main() {
     vec3 directColor = vec3(0.0, 0.0, 0.0);
@@ -165,6 +171,7 @@ void main() {
    }
    
     outColor = vec4(directColor+indirectColor+diffuseColor.xyz*0.00f,1.0f);
+    outDirectIr=vec4(1.0,0.0,0.0,1.0);
 
     //if(isLightSource(materialBuffer.data[material_id].emission)) outColor = vec4(materialBuffer.data[material_id].emission,1.0f);
 }

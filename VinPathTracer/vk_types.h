@@ -45,6 +45,14 @@ struct Texture {
     VkSampler textureSampler;
 };
 
+struct Attachment {
+    std::string name;
+    VkImage image;
+    VkDeviceMemory imageMemory;
+    VkImageView imageView;
+    VkFormat format;
+};
+
 struct Pipeline {
     VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
