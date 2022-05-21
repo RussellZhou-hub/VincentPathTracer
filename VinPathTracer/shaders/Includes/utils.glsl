@@ -14,3 +14,15 @@ vec3 getSampledReflectedDirection(vec3 cameraPos,vec3 inRay,vec3 normal,vec2 uv,
     float weight=0.5;  //reflection rate
     return normalize(weight*Ray+(1-weight)*normalize(RandomRay));
 }
+
+vec2 getFragCoord(mat4 pv,vec3 pos){          //从世界坐标获取对应的上一帧里的屏幕坐标
+    vec4 clipPos=pv*vec4(pos,1.0);
+      
+    clipPos/=clipPos.w;
+    clipPos.y=-clipPos.y;
+    clipPos.xy+=1;
+    clipPos.xy/=2;
+    clipPos.x*=1920;
+    clipPos.y*=1080;
+    return floor(clipPos.xy)+0.5;
+}

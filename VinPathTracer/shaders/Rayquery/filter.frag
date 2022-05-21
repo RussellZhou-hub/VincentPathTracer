@@ -48,8 +48,12 @@ void main() {
     vec3 surfaceColor=vec3(0.0,0.0,0.0);
     vec4 historyColor=imageLoad(historyColorImages[0],ivec2(gl_FragCoord.xy));
    
+    vec2 myFragCoord=getFragCoord(ubo.proj * ubo.view * ubo.model,interpolatedPosition);
+    if(myFragCoord.x==gl_FragCoord.x) outDirectIr=vec4(0.5,0.0,0.0,1.0);
+    else outDirectIr=vec4(0.0,0.5,0.0,1.0);
+
     outColor = historyColor;
-    outDirectIr=vec4(0.5,0.0,0.0,1.0);
+    //outDirectIr=vec4(0.5,0.0,0.0,1.0);
 
     //if(isLightSource(materialBuffer.data[material_id].emission)) outColor = vec4(materialBuffer.data[material_id].emission,1.0f);
 }

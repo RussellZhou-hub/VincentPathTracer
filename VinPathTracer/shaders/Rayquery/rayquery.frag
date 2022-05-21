@@ -134,22 +134,16 @@ void main() {
             vec3 extensionSurfaceColor;
             int extensionDiffuse_id=materialIndexBuffer.data[extensionPrimitiveIndex].diffuse_idx;
             uint extensionMaterial_id=materialIndexBuffer.data[extensionPrimitiveIndex].material_id;
-            if(gl_FragCoord.x>1978){
+            if(gl_FragCoord.x>1918){
                 debugPrintfEXT("extensionDiffuse_id is %d  extensionMaterial_id is %d \n",extensionDiffuse_id,extensionMaterial_id);
             }
             if(extensionDiffuse_id==-1){
                 extensionSurfaceColor=materialBuffer.data[extensionMaterial_id].diffuse;
-                extensionSurfaceColor=vec3(0.0,0.0,0.5);
-                //extensionSurfaceColor=texture(textures[extensionDiffuse_id], extVertex_tex).rgb;
             }
             else{
                 extensionSurfaceColor=texture(textures[extensionDiffuse_id], extensionTexCoord).rgb;
-                //extensionSurfaceColor=materialBuffer.data[extensionMaterial_id].diffuse;
-                //extensionSurfaceColor=texture(textures[diffuse_id], fragTexCoord).rgb;
-                //extensionSurfaceColor=vec3(0.0,0.0,1.0);
             }
             inDirectAlbedo=extensionSurfaceColor;
-            //extensionSurfaceColor = vec3(0.0,1.0,0.0);
 
             //vec2 RayHitPointFragCoord=getFragCoord(extensionPosition.xyz);
 
