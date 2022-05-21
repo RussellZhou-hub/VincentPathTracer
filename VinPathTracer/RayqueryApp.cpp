@@ -343,6 +343,10 @@ void RayQueryApp::createAttachments()  //create color attachments not including 
         attach.format = swapChainImageFormat;
         createImage(WIDTH, HEIGHT, attach.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, attach.image , attach.imageMemory);
         attach.imageView=createImageView(attach.image, attach.format, VK_IMAGE_ASPECT_COLOR_BIT);
+        VkImageMemoryBarrier imageMemoryBarrier=vkinit::barrier_des(attach.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+        VkCommandBuffer commandBuffer=beginSingleTimeCommands();
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0, NULL, 1, &imageMemoryBarrier);
+        endSingleTimeCommands(commandBuffer);
         outPutAttachments.push_back(attach);
 
         Attachment attach_input;
