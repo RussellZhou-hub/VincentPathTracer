@@ -194,6 +194,7 @@
     <None Include="shaders\Includes\random.glsl" />
     <None Include="shaders\Includes\types.glsl" />
     <None Include="shaders\Includes\utils.glsl" />
+    <None Include="shaders\Rayquery\filter.frag" />
     <None Include="shaders\Rayquery\rayquery.frag" />
     <None Include="shaders\Rayquery\rayquery.vert" />
   </ItemGroup>

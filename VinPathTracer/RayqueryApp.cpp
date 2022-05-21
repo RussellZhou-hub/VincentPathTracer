@@ -48,6 +48,8 @@ void RayQueryApp::initVulkan()
     createRenderPass();
     createDescriptorSetLayout();
     createGraphicsPipeline();
+    pipline_filter.renderPass = renderPass;
+    createGraphicsPipeline(pipline_filter, "Rayquery/rayquery.vert.spv", "Rayquery/filter.frag.spv");
     createDepthResources();
     createFramebuffers();
     createTextureImage();
@@ -444,6 +446,63 @@ void RayQueryApp::createGraphicsPipeline()
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
 }
 
+void RayQueryApp::createGraphicsPipeline(Pipeline& pipeline, std::string vsName, std::string fsName)
+{
+#ifdef _DEBUG
+    std::string baseDir("C:/Users/Rocki/source/repos/VinPathTracer/VinPathTracer/shaders/");
+#else
+    std::string baseDir("shaders/");
+#endif
+    auto vertShaderCode = readFile(baseDir + vsName);
+    auto fragShaderCode = readFile(baseDir + fsName);
+
+
+    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo = vkinit::ShaderStage_info(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule);
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo = vkinit::ShaderStage_info(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderModule);
+    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo = vkinit::vertexInputState_create_info(&bindingDescription, attributeDescriptions.data(), 1, static_cast<uint32_t>(attributeDescriptions.size()));
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly = vkinit::inputAssembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE);
+
+    VkViewport viewport = vkinit::viewport_des(0.0f, 0.0f, (float)swapChainExtent.width, (float)swapChainExtent.height, 0.0f, 1.0f);
+    VkRect2D scissor = vkinit::scissor({ 0, 0 }, swapChainExtent);
+
+    VkPipelineViewportStateCreateInfo viewportState = vkinit::viewportState_create_info(&viewport, &scissor);
+    VkPipelineRasterizationStateCreateInfo rasterizer = vkinit::rasterizationState_create_info();
+    VkPipelineMultisampleStateCreateInfo multisampling = vkinit::multisampleState_create_info();
+    VkPipelineDepthStencilStateCreateInfo depthStencil = vkinit::depthStencil_create_info();
+
+    VkPipelineColorBlendAttachmentState* pColorBlendAttachmentState = (VkPipelineColorBlendAttachmentState*)malloc(outPutAttachments.size() * sizeof(VkPipelineColorBlendAttachmentState));
+    for (auto i = 0; i < outPutAttachments.size(); i++) {
+        pColorBlendAttachmentState[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        pColorBlendAttachmentState[i].blendEnable = VK_FALSE;
+    }
+
+    float blendConstants[4] = { 0.0,0.0,0.0,0.0 };
+    VkPipelineColorBlendStateCreateInfo colorBlending = vkinit::colorBlendState_create_info(outPutAttachments.size(), pColorBlendAttachmentState, blendConstants);
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkinit::pipelineLayout_create_info(1, &descriptorSetLayout);
+
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipeline.pipelineLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create pipeline layout!");
+    }
+
+    VkGraphicsPipelineCreateInfo pipelineInfo = vkinit::graphicsPipeline_create_info(2, shaderStages, &vertexInputInfo, &inputAssembly, &viewportState,
+        &rasterizer, &multisampling, &depthStencil, &colorBlending, pipeline.pipelineLayout, pipeline.renderPass, 0);
+
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline.graphicsPipeline) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create graphics pipeline!");
+    }
+
+    vkDestroyShaderModule(device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+}
+
 void RayQueryApp::createRenderPass()
 {
     VkAttachmentDescription colorAttachment = vkinit::colorAttachment_des(swapChainImageFormat, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -517,6 +576,22 @@ void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
         }
         vkCmdCopyImage(commandBuffer, depthImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, historyDepth.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
     }
+
+    VkRenderPassBeginInfo renderPassInfo_2th = vkinit::renderPass_begin_info(pipline_filter.renderPass, swapChainFramebuffers[imageIndex], swapChainExtent, outPutAttachments.size() + 1);
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo_2th, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipline_filter.graphicsPipeline);
+
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipline_filter.pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+    vkCmdEndRenderPass(commandBuffer);
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer!");

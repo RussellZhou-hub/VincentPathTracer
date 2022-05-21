@@ -47,6 +47,7 @@ public:
 	void createAttachments();
 	void createFramebuffers();
 	void createGraphicsPipeline();
+	void createGraphicsPipeline(Pipeline& pipeline, std::string vsName, std::string fsName);
 	void createRenderPass();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	uint64_t getBufferDeviceAddress(VkBuffer buffer);
@@ -58,6 +59,8 @@ public:
 	std::vector<Attachment> outPutAttachments;
 
 	Attachment historyDepth;
+
+	Pipeline pipline_filter;
 
 	// Function pointers for ray tracing related stuff
 	PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR;
