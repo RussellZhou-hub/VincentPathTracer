@@ -69,6 +69,7 @@ VkApplication::VkApplication()
     vertShaderName = "basic.vert.spv";
     fragShaderName = "basic.frag.spv";
     ubo = {};
+    ubo.mode = 1;
     ubo.frameCount = 0;
     ubo.quadArealignt.A = glm::vec4(-949.0f, 1259.0f, -207.0f, 1.0f);
     ubo.quadArealignt.B = glm::vec4(-953.0f, 1259.0f, 207.0f, 1.0f);

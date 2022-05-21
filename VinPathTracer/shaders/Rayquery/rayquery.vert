@@ -14,6 +14,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 proj;
     QuadArealignt qLight;
     uint frameCount;
+     uint mode;  //denoising algorithm   1:raw  2:mvec 3:svgf 4:ours 5: ground truth
 } ubo;
 
 layout(location = 0) in vec3 inPosition;

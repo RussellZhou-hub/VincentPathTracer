@@ -17,6 +17,7 @@ layout(binding = 0) uniform UniformBufferObject {
     QuadArealignt qLight;
     vec4 cameraPos;
     uint frameCount;
+    uint mode;  //denoising algorithm   1:raw  2:mvec 3:svgf 4:ours 5: ground truth
 } ubo;
 
 layout(binding = 1) uniform sampler2D texSampler;
@@ -46,7 +47,7 @@ void main() {
     vec3 directColor = vec3(0.0, 0.0, 0.0);
     vec3 indirectColor = vec3(0.0, 0.0, 0.0);
     vec3 surfaceColor=vec3(0.0,0.0,0.0);
-    vec4 historyColor=imageLoad(historyColorImages[0],ivec2(gl_FragCoord.xy));
+    vec4 historyColor=imageLoad(historyColorImages[1],ivec2(gl_FragCoord.xy));
    
     vec2 myFragCoord=getFragCoord(ubo.proj * ubo.view * ubo.model,interpolatedPosition);
     if(myFragCoord.x==gl_FragCoord.x) outDirectIr=vec4(0.5,0.0,0.0,1.0);

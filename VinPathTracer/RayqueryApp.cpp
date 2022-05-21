@@ -107,6 +107,13 @@ void RayQueryApp::mainLoop()
                 camera.pos += glm::normalize(glm::cross(camera.front, camera.up)) * cameraSpeed;
                 ubo.frameCount = 1; //camera moved
             }
+
+            // adjust denoising mode
+            if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) ubo.mode = 1;
+            if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) ubo.mode = 2;
+            if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) ubo.mode = 3;
+            if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) ubo.mode = 4;
+            if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) ubo.mode = 5;
         }
         drawFrame();
     }

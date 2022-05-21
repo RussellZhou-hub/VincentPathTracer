@@ -10,6 +10,8 @@
 #include "../includes/random.glsl"
 #include "../includes/utils.glsl"
 
+#define NUM_SAMPLE 64
+
 layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
@@ -17,6 +19,7 @@ layout(binding = 0) uniform UniformBufferObject {
     QuadArealignt qLight;
     vec4 cameraPos;
     uint frameCount;
+    uint mode;  //denoising algorithm   1:raw  2:mvec 3:svgf 4:ours 5: ground truth
 } ubo;
 
 layout(binding = 1) uniform sampler2D texSampler;
@@ -68,34 +71,40 @@ void main() {
     outNormal=vec4(fragNormal/2+0.5,0.0);
     
     vec3 lightColor = vec3(0.6, 0.6, 0.6);
-    vec3 lightPosition=lightPos;
     vec3 geometricNormal=fragNormal;
-
-    vec3 positionToLightDirection = normalize(lightPosition - interpolatedPosition);
-
     vec3 shadowRayOrigin = interpolatedPosition;
-    vec3 shadowRayDirection = positionToLightDirection;
-    float shadowRayDistance = length(lightPosition - interpolatedPosition) - 0.001f;
 
     
-    //shadow ray
-    rayQueryEXT rayQuery;
-    rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT| gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT, 0xFF, shadowRayOrigin, 0.001f, shadowRayDirection, shadowRayDistance);
-  
-    while (rayQueryProceedEXT(rayQuery));
+    vec3 directIr_final=vec3(0.0,0.0,0.0);
+    int spp= ubo.mode==5?NUM_SAMPLE:1;
+    float w_sample=1.0/spp;
+    for(int i=0;i<spp;i++){
+        vec3 lightPosition= spp==1?lightPos:get_Random_QuadArea_Light_Pos(ubo.qLight.A.xyz,  ubo.qLight.B.xyz,  ubo.qLight.C.xyz, ubo.qLight.D.xyz, i,spp);
+        vec3 positionToLightDirection = normalize(lightPosition - interpolatedPosition);
+        vec3 shadowRayDirection = positionToLightDirection;
+        float shadowRayDistance = length(lightPosition - interpolatedPosition) - 0.001f;
 
-    // If the intersection has hit a triangle, the fragment is shadowed
-	if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionNoneEXT ) {
-        directIr=lightColor* dot(geometricNormal, positionToLightDirection);
-        directColor=directIr*directAlbedo;
-	}
-    else{
-        directColor=vec3(0.0,0.0,0.0);
-        directIr=directColor;
+        //shadow ray
+        rayQueryEXT rayQuery;
+        rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT| gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT, 0xFF, shadowRayOrigin, 0.001f, shadowRayDirection, shadowRayDistance);
+  
+        while (rayQueryProceedEXT(rayQuery));
+
+        // If the intersection has hit a triangle, the fragment is shadowed
+	    if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionNoneEXT ) {
+            directIr=lightColor* dot(geometricNormal, positionToLightDirection);
+            directColor=directIr*directAlbedo;
+	    }
+        else{
+            directColor=vec3(0.0,0.0,0.0);
+            directIr=directColor;
+        }
+        directIr_final+=directIr*w_sample;
     }
     outColor=vec4(directAlbedo,1.0);
-    outDirectIr=vec4(directIr,1.0);
+    outDirectIr=vec4(directIr_final,1.0);
     
+    vec3 lightPosition=lightPos;
     vec3 rayOrigin = interpolatedPosition;
     vec3 rayDirection = getSampledReflectedDirection(ubo.cameraPos.xyz,interpolatedPosition.xyz,geometricNormal,gl_FragCoord.xy,ubo.frameCount);
     vec3 previousNormal = geometricNormal;

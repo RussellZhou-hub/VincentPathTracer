@@ -58,3 +58,17 @@ vec3 get_Random_QuadArea_Light_Pos(vec3 A,vec3 B,vec3 C,vec3 D,uint randomIndex)
     return lightPosition;
 }
 
+vec3 get_Random_QuadArea_Light_Pos(vec3 A,vec3 B,vec3 C,vec3 D,int s,uint spp){    //ground truth multi-sampling
+
+    float stride=1.0f/(sqrt(spp)+0.01f);
+    float u=mod(s,sqrt(spp))*stride;
+    float v=floor(s/(sqrt(spp)+0.01f))*stride;
+    vec2 uv = vec2(u,v);
+
+    vec3 mixAB=mix(A,B,uv.x);
+    vec3 mixCD=mix(D,D,uv.x);
+    vec3 lightPosition=mix(mixAB,mixCD,uv.y);
+
+    return lightPosition;
+}
+

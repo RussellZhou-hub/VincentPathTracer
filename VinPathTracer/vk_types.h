@@ -35,6 +35,7 @@ struct UniformBufferObject {
     alignas(16) QuadArealignt quadArealignt;
     alignas(4) glm::vec4 cameraPos;
     alignas(4) uint32_t frameCount;
+    alignas(4) uint32_t mode;  //denoising algorithm
 };
 
 struct Texture {

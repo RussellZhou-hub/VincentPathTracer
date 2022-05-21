@@ -1,5 +1,8 @@
 #extension GL_EXT_control_flow_attributes : require
 
+#define WIDTH 1920
+#define HEIGHT 1080
+
 bool isLightSource(vec3 emission){
 	if(length(emission)>0.01) return true;
 	else return false;
@@ -22,7 +25,7 @@ vec2 getFragCoord(mat4 pv,vec3 pos){          //从世界坐标获取对应的上一帧里的屏
     clipPos.y=-clipPos.y;
     clipPos.xy+=1;
     clipPos.xy/=2;
-    clipPos.x*=1920;
-    clipPos.y*=1080;
+    clipPos.x*=WIDTH;
+    clipPos.y*=HEIGHT;
     return floor(clipPos.xy)+0.5;
 }
