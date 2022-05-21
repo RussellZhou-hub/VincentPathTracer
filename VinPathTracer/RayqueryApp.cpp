@@ -294,6 +294,9 @@ void RayQueryApp::createDescriptorSetLayout()
     bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_FRAGMENT_BIT));
     bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));//vertex buffer
     bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));//index buffer
+    VkDescriptorSetLayoutBinding history_image_binding = vkinit::descriptorSet_layout_bindings(bindings.size(), inPutAttachments.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT);
+    bindings.push_back(history_image_binding);//History color image array
+    bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));//History depth image
 
     VkDescriptorSetLayoutCreateInfo layoutInfo = vkinit::descriptorSetLayout_create_info(static_cast<uint32_t>(bindings.size()), bindings.data());
     VK_CHECK(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout), "failed to create descriptor set layout!");
@@ -330,6 +333,10 @@ void RayQueryApp::createDescriptorSets()
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &vertexBufferInfo));
         VkDescriptorBufferInfo indexBufferInfo = vkinit::buffer_info(indexBuffer);
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &indexBufferInfo));
+        VkDescriptorImageInfo* imageInfo_history_array = vkinit::get_inputAttach_descriptor_ImageInfos(inPutAttachments.size(), inPutAttachments);
+        descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, imageInfo_history_array, nullptr, nullptr, inPutAttachments.size()));
+        VkDescriptorImageInfo depthImageInfo = vkinit::image_info(historyDepth.imageView, 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &depthImageInfo));
         
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -355,6 +362,9 @@ void RayQueryApp::createAttachments()  //create color attachments not including 
         attach_input.imageView = createImageView(attach_input.image, attach_input.format, VK_IMAGE_ASPECT_COLOR_BIT);
         inPutAttachments.push_back(attach_input);
     }
+    historyDepth.format = findDepthFormat();
+    createImage(WIDTH, HEIGHT, historyDepth.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, historyDepth.image, historyDepth.imageMemory);
+    historyDepth.imageView = createImageView(historyDepth.image, historyDepth.format, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void RayQueryApp::createFramebuffers()
@@ -493,6 +503,20 @@ void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
+
+    {
+        VkImageSubresourceLayers subresourceLayers = vkinit::subresource_layers();
+        VkOffset3D offset = vkinit::offset();
+        VkExtent3D extent = vkinit::extent(WIDTH, HEIGHT);
+        VkImageCopy imageCopy = vkinit::imageCopy(subresourceLayers, offset, subresourceLayers, offset, extent);
+
+        //copy 当前帧 渲染结果 到 History(Geometry) Buffer
+        vkCmdCopyImage(commandBuffer, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[0].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        for (auto i = 1; i < outPutAttachments.size(); i++) {
+            vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        }
+        vkCmdCopyImage(commandBuffer, depthImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, historyDepth.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+    }
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer!");
@@ -745,21 +769,15 @@ RayQueryApp::ScratchBuffer RayQueryApp::createScratchBuffer(VkDeviceSize size)
 {
     ScratchBuffer scratchBuffer{};
     // Buffer and memory
-    VkBufferCreateInfo bufferCreateInfo{};
-    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferCreateInfo.size = size;
-    bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    VkBufferCreateInfo bufferCreateInfo=vkinit::buffer_create_info(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
     VK_CHECK_RESULT(vkCreateBuffer(device, &bufferCreateInfo, nullptr, &scratchBuffer.handle));
     VkMemoryRequirements memoryRequirements{};
     vkGetBufferMemoryRequirements(device, scratchBuffer.handle, &memoryRequirements);
     VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{};
     memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
     memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
-    VkMemoryAllocateInfo memoryAllocateInfo = {};
-    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    VkMemoryAllocateInfo memoryAllocateInfo = vkinit::memoryAllocate_info(memoryRequirements.size, findMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT));
     memoryAllocateInfo.pNext = &memoryAllocateFlagsInfo;
-    memoryAllocateInfo.allocationSize = memoryRequirements.size;
-    memoryAllocateInfo.memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     VK_CHECK_RESULT(vkAllocateMemory(device, &memoryAllocateInfo, nullptr, &scratchBuffer.memory));
     VK_CHECK_RESULT(vkBindBufferMemory(device, scratchBuffer.handle, scratchBuffer.memory, 0));
     // Buffer device address

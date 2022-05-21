@@ -26,6 +26,8 @@ layout(binding = 4) buffer MaterialBuffer { Material data[]; } materialBuffer;
 layout(binding = 5,set=0) uniform accelerationStructureEXT topLevelAS;
 layout(binding = 6) buffer VertexBuffer { Vertex data[]; } vertexBuffer;
 layout(binding = 7) buffer IndexBuffer { uint data[]; } indexBuffer;
+layout (binding = 8, rgba32f) uniform image2D historyColorImages[];
+layout (binding = 9, r32f) uniform image2D historyDepthImage;
 
 layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec3 fragNormal;

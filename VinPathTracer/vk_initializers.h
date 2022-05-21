@@ -61,6 +61,7 @@ namespace vkinit {
 	VkDescriptorPoolSize des_pool_size(VkDescriptorType type,uint32_t descriptorCount);
 	VkDescriptorPoolCreateInfo descriptorPool_create_info(uint32_t maxSets,uint32_t poolSizeCount,const VkDescriptorPoolSize* pPoolSizes);
 	VkDescriptorSetLayoutBinding descriptorSet_layout_bindings(uint32_t binding, uint32_t descriptorCount, VkDescriptorType descriptorType,VkShaderStageFlags stageFlags,const VkSampler* pImmutableSamplers=nullptr);
+	VkDescriptorImageInfo* get_inputAttach_descriptor_ImageInfos(uint32_t image_count, std::vector<Attachment> attach);
 	VkDescriptorSetLayoutCreateInfo descriptorSetLayout_create_info(uint32_t bindingCount,const VkDescriptorSetLayoutBinding* pBindings);
 	VkDescriptorSetAllocateInfo descriptorSet_allocate_info(VkDescriptorPool descriptorPool,uint32_t descriptorSetCount,const VkDescriptorSetLayout* pSetLayouts);
 	VkWriteDescriptorSet writeDescriptorSets_info(const void* pNext,VkDescriptorSet dstSet,uint32_t dstBinding,VkDescriptorType  descriptorType,

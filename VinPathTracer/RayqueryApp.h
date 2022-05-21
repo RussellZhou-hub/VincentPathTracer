@@ -57,6 +57,8 @@ public:
 	std::vector<Attachment> inPutAttachments;
 	std::vector<Attachment> outPutAttachments;
 
+	Attachment historyDepth;
+
 	// Function pointers for ray tracing related stuff
 	PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR;
 	PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR;

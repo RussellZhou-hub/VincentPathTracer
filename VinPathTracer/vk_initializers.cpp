@@ -544,6 +544,15 @@ VkDescriptorImageInfo* vkinit::get_textures_descriptor_ImageInfos(uint32_t textu
 	return texture_infos;
 }
 
+VkDescriptorImageInfo* vkinit::get_inputAttach_descriptor_ImageInfos(uint32_t image_count, std::vector<Attachment> attach)
+{
+	VkDescriptorImageInfo* infos = (VkDescriptorImageInfo*)malloc(sizeof(VkDescriptorImageInfo) * image_count);
+	for (uint32_t i = 0; i < image_count; ++i) {
+		infos[i] = vkinit::image_info(attach[i].imageView,0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	}
+	return infos;
+}
+
 VkAccelerationStructureGeometryTrianglesDataKHR vkinit::AS_GeometryTriangles_data(VkDeviceOrHostAddressConstKHR vertexData, VkDeviceSize vertexStride, uint32_t maxVertex, VkDeviceOrHostAddressConstKHR indexData, VkDeviceOrHostAddressConstKHR transformData, VkIndexType indexType, VkFormat vertexFormat)
 {
 	VkAccelerationStructureGeometryTrianglesDataKHR AS_data = {};
