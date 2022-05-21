@@ -46,6 +46,10 @@ void main() {
     vec3 directColor = vec3(0.0, 0.0, 0.0);
     vec3 indirectColor = vec3(0.0, 0.0, 0.0);
     vec3 surfaceColor=vec3(0.0,0.0,0.0);
+    vec3 directAlbedo=vec3(0.0,0.0,0.0);
+    vec3 directIr=vec3(0.0,0.0,0.0);
+    vec3 inDirectAlbedo=vec3(0.0,0.0,0.0);
+    vec3 inDirectIR=vec3(0.0,0.0,0.0);
     vec3 lightPos=get_Random_QuadArea_Light_Pos(ubo.qLight.A.xyz,  ubo.qLight.B.xyz,  ubo.qLight.C.xyz, ubo.qLight.D.xyz, ubo.frameCount);
     float irradiance=dot(fragNormal,vec3(lightPos-interpolatedPosition));
     irradiance=clamp(irradiance,0.0f,1.0f)/(0.001f*distance(lightPos,interpolatedPosition)+0.01f);
@@ -59,6 +63,9 @@ void main() {
         diffuseColor=texture(textures[diffuse_id], fragTexCoord);
     }
     surfaceColor=diffuseColor.xyz;
+    directAlbedo=surfaceColor;
+    outWorldPos=vec4(interpolatedPosition/10000+0.5f,1.0f);
+    outNormal=vec4(fragNormal/2+0.5,0.0);
     
     vec3 lightColor = vec3(0.6, 0.6, 0.6);
     vec3 lightPosition=lightPos;
@@ -79,21 +86,16 @@ void main() {
 
     // If the intersection has hit a triangle, the fragment is shadowed
 	if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionNoneEXT ) {
-		directColor=surfaceColor * lightColor;// * dot(geometricNormal, positionToLightDirection); 
+        directIr=lightColor* dot(geometricNormal, positionToLightDirection);
+        directColor=directIr*directAlbedo;
 	}
     else{
         directColor=vec3(0.0,0.0,0.0);
+        directIr=directColor;
     }
-
+    outColor=vec4(directAlbedo,1.0);
+    outDirectIr=vec4(directIr,1.0);
     
-    ivec3 indices = ivec3(indexBuffer.data[3 * gl_PrimitiveID + 0], indexBuffer.data[3 * gl_PrimitiveID + 1], indexBuffer.data[3 * gl_PrimitiveID + 2]);
-    
-    vec3 vertexA =vertexBuffer.data[indices.x].pos;
-    vec3 vertexB=vertexBuffer.data[indices.y].pos;
-    vec3 vertexC=vertexBuffer.data[indices.z].pos;
-    /*
-    geometricNormal = normalize(cross(vertexB - vertexA, vertexC - vertexA));
-    */
     vec3 rayOrigin = interpolatedPosition;
     vec3 rayDirection = getSampledReflectedDirection(ubo.cameraPos.xyz,interpolatedPosition.xyz,geometricNormal,gl_FragCoord.xy,ubo.frameCount);
     vec3 previousNormal = geometricNormal;
@@ -111,8 +113,8 @@ void main() {
 
         if (rayQueryGetIntersectionTypeEXT(secondaryRayQuery, true) != gl_RayQueryCommittedIntersectionNoneEXT) {
         
-            int extensionPrimitiveIndex = rayQueryGetIntersectionPrimitiveIndexEXT(rayQuery, true);
-            vec2 extensionIntersectionBarycentric = rayQueryGetIntersectionBarycentricsEXT(rayQuery, true);
+            int extensionPrimitiveIndex = rayQueryGetIntersectionPrimitiveIndexEXT(secondaryRayQuery, true);
+            vec2 extensionIntersectionBarycentric = rayQueryGetIntersectionBarycentricsEXT(secondaryRayQuery, true);
 
             ivec3 extensionIndices = ivec3(indexBuffer.data[3 * extensionPrimitiveIndex + 0], indexBuffer.data[3 * extensionPrimitiveIndex + 1], indexBuffer.data[3 * extensionPrimitiveIndex + 2]);
             vec3 extensionBarycentric = vec3(1.0 - extensionIntersectionBarycentric.x - extensionIntersectionBarycentric.y, extensionIntersectionBarycentric.x, extensionIntersectionBarycentric.y);
@@ -120,11 +122,33 @@ void main() {
             vec3 extensionVertexA =vertexBuffer.data[extensionIndices.x].pos;
             vec3 extensionVertexB=vertexBuffer.data[extensionIndices.y].pos;
             vec3 extensionVertexC=vertexBuffer.data[extensionIndices.z].pos;
+
+            vec2 extensionVertexA_texCoord =vertexBuffer.data[extensionIndices.x].texCoord;
+            vec2 extensionVertexB_texCoord=vertexBuffer.data[extensionIndices.y].texCoord;
+            vec2 extensionVertexC_texCoord=vertexBuffer.data[extensionIndices.z].texCoord;
     
             vec3 extensionPosition = extensionVertexA * extensionBarycentric.x + extensionVertexB * extensionBarycentric.y + extensionVertexC * extensionBarycentric.z;
+            vec2 extensionTexCoord = extensionVertexA_texCoord * extensionBarycentric.x + extensionVertexB_texCoord * extensionBarycentric.y + extensionVertexC_texCoord * extensionBarycentric.z;
             vec3 extensionNormal = normalize(cross(extensionVertexB - extensionVertexA, extensionVertexC - extensionVertexA));
 
-            vec3 extensionSurfaceColor = materialBuffer.data[materialIndexBuffer.data[extensionPrimitiveIndex].material_id].diffuse;
+            vec3 extensionSurfaceColor;
+            int extensionDiffuse_id=materialIndexBuffer.data[extensionPrimitiveIndex].diffuse_idx;
+            uint extensionMaterial_id=materialIndexBuffer.data[extensionPrimitiveIndex].material_id;
+            if(gl_FragCoord.x>1978){
+                debugPrintfEXT("extensionDiffuse_id is %d  extensionMaterial_id is %d \n",extensionDiffuse_id,extensionMaterial_id);
+            }
+            if(extensionDiffuse_id==-1){
+                extensionSurfaceColor=materialBuffer.data[extensionMaterial_id].diffuse;
+                extensionSurfaceColor=vec3(0.0,0.0,0.5);
+                //extensionSurfaceColor=texture(textures[extensionDiffuse_id], extVertex_tex).rgb;
+            }
+            else{
+                extensionSurfaceColor=texture(textures[extensionDiffuse_id], extensionTexCoord).rgb;
+                //extensionSurfaceColor=materialBuffer.data[extensionMaterial_id].diffuse;
+                //extensionSurfaceColor=texture(textures[diffuse_id], fragTexCoord).rgb;
+                //extensionSurfaceColor=vec3(0.0,0.0,1.0);
+            }
+            inDirectAlbedo=extensionSurfaceColor;
             //extensionSurfaceColor = vec3(0.0,1.0,0.0);
 
             //vec2 RayHitPointFragCoord=getFragCoord(extensionPosition.xyz);
@@ -145,6 +169,7 @@ void main() {
             while (rayQueryProceedEXT(rayQuery));//secondary shadow ray
             if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
                 indirectColor += (1.0 / (rayDepth + 1)) * extensionSurfaceColor * lightColor  * dot(previousNormal, rayDirection) * dot(extensionNormal, positionToLightDirection);
+                inDirectIR=(1.0 / (rayDepth + 1))* lightColor  * dot(previousNormal, rayDirection) * dot(extensionNormal, positionToLightDirection);
                 //indirectColor=extensionSurfaceColor;
             }
             else {
@@ -167,13 +192,14 @@ void main() {
         
         else {  //secondary ray not hit
             rayActive = false;
-            //directColor=vec3(1.0,0.0,0.0);
         }
      }
    }
    
-    outColor = vec4(directColor+indirectColor+diffuseColor.xyz*0.00f,1.0f);
-    outDirectIr=vec4(1.0,0.0,0.0,1.0);
+    //outColor = vec4(directColor+indirectColor+diffuseColor.xyz*0.00f,1.0f);
+    //outDirectIr=vec4(1.0,0.0,0.0,1.0);
+    outIndAlbedo=vec4(inDirectAlbedo,1.0);
+    outIndIr=vec4(inDirectIR,1.0);
 
     //if(isLightSource(materialBuffer.data[material_id].emission)) outColor = vec4(materialBuffer.data[material_id].emission,1.0f);
 }

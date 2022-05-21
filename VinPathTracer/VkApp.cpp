@@ -292,13 +292,27 @@ void VkApplication::createInstance() {
     auto extensions = getRequiredExtensions();
     VkInstanceCreateInfo createInfo = vkinit::instance_create_info(&appInfo, static_cast<uint32_t>(extensions.size()), extensions.data());
 
+    const std::vector<VkValidationFeatureEnableEXT> enabledValidationLayers = {
+        VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT
+    };
+
+    // debugPrintf
+    VkValidationFeaturesEXT validationFeatures = vkinit::validation_Features_info(enabledValidationLayers.size(), enabledValidationLayers.data());
+
+    createInfo.pNext = &validationFeatures;;
+
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+    debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debugCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_REPORT_INFORMATION_BIT_EXT;
+    debugCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    debugCreateInfo.pfnUserCallback = debugCallback;
     if (enableValidationLayers) {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
 
         populateDebugMessengerCreateInfo(debugCreateInfo);
-        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+        validationFeatures.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
     }
     else {
         createInfo.enabledLayerCount = 0;
@@ -308,6 +322,11 @@ void VkApplication::createInstance() {
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
         throw std::runtime_error("failed to create instance!");
+    }
+
+    PFN_vkCreateDebugUtilsMessengerEXT pvkCreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (pvkCreateDebugUtilsMessengerEXT(instance, &debugCreateInfo, NULL, &debugMessenger) == VK_SUCCESS) {
+        printf("created debug messenger\n");
     }
 }
 
@@ -1449,6 +1468,7 @@ std::vector<const char*> VkApplication::getRequiredExtensions() {
 
     if (enableValidationLayers) {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
     }
 
     return extensions;
