@@ -49,7 +49,11 @@ void RayQueryApp::initVulkan()
     createDescriptorSetLayout();
     createGraphicsPipeline();
     pipline_filter.renderPass = renderPass;
+    pipline_filter_2nd.renderPass = renderPass;
+    pipline_filter_3rd.renderPass = renderPass;
     createGraphicsPipeline(pipline_filter, "Rayquery/rayquery.vert.spv", "Rayquery/filter.frag.spv");
+    createGraphicsPipeline(pipline_filter_2nd, "Rayquery/rayquery.vert.spv", "Rayquery/filter_2nd.frag.spv");
+    createGraphicsPipeline(pipline_filter_3rd, "Rayquery/rayquery.vert.spv", "Rayquery/filter_3rd.frag.spv");
     createDepthResources();
     createFramebuffers();
     createTextureImage();
@@ -371,6 +375,12 @@ void RayQueryApp::createAttachments()  //create color attachments not including 
         attach_input.imageView = createImageView(attach_input.image, attach_input.format, VK_IMAGE_ASPECT_COLOR_BIT);
         inPutAttachments.push_back(attach_input);
     }
+    Attachment historyVariance;
+    historyVariance.format = swapChainImageFormat;
+    createImage(WIDTH, HEIGHT, historyVariance.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, historyVariance.image, historyVariance.imageMemory);
+    historyVariance.imageView = createImageView(historyVariance.image, historyVariance.format, VK_IMAGE_ASPECT_COLOR_BIT);
+    inPutAttachments.push_back(historyVariance);
+
     historyDepth.format = findDepthFormat();
     createImage(WIDTH, HEIGHT, historyDepth.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, historyDepth.image, historyDepth.imageMemory);
     historyDepth.imageView = createImageView(historyDepth.image, historyDepth.format, VK_IMAGE_ASPECT_DEPTH_BIT);
@@ -554,7 +564,7 @@ void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
     }
     VkRenderPassBeginInfo renderPassInfo = vkinit::renderPass_begin_info(renderPass, swapChainFramebuffers[imageIndex], swapChainExtent, outPutAttachments.size()+1);
 
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);   // ray query pass ***************************************************
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
@@ -586,7 +596,7 @@ void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
 
     VkRenderPassBeginInfo renderPassInfo_2th = vkinit::renderPass_begin_info(pipline_filter.renderPass, swapChainFramebuffers[imageIndex], swapChainExtent, outPutAttachments.size() + 1);
 
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo_2th, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo_2th, VK_SUBPASS_CONTENTS_INLINE);  // 1st filter pass ********************************************************
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipline_filter.graphicsPipeline);
 
@@ -599,6 +609,75 @@ void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
+
+    {
+        VkImageSubresourceLayers subresourceLayers = vkinit::subresource_layers();
+        VkOffset3D offset = vkinit::offset();
+        VkExtent3D extent = vkinit::extent(WIDTH, HEIGHT);
+        VkImageCopy imageCopy = vkinit::imageCopy(subresourceLayers, offset, subresourceLayers, offset, extent);
+
+        //copy 当前帧 渲染结果 到 History(Geometry) Buffer
+        for (auto i = 1; i < 4; i++) {
+            vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        }
+        vkCmdCopyImage(commandBuffer, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[6].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);  //outColor to imageVar
+    }
+
+    VkRenderPassBeginInfo renderPassInfo_2nd = vkinit::renderPass_begin_info(pipline_filter_2nd.renderPass, swapChainFramebuffers[imageIndex], swapChainExtent, outPutAttachments.size() + 1);
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo_2nd, VK_SUBPASS_CONTENTS_INLINE);  // 2nd filter pass ********************************************************
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipline_filter_2nd.graphicsPipeline);
+
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipline_filter_2nd.pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+    vkCmdEndRenderPass(commandBuffer);
+
+    {
+        VkImageSubresourceLayers subresourceLayers = vkinit::subresource_layers();
+        VkOffset3D offset = vkinit::offset();
+        VkExtent3D extent = vkinit::extent(WIDTH, HEIGHT);
+        VkImageCopy imageCopy = vkinit::imageCopy(subresourceLayers, offset, subresourceLayers, offset, extent);
+
+        //copy 当前帧 渲染结果 到 History(Geometry) Buffer
+        for (auto i = 1; i < 4; i++) {
+            vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        }
+    }
+
+    VkRenderPassBeginInfo renderPassInfo_3rd = vkinit::renderPass_begin_info(pipline_filter_3rd.renderPass, swapChainFramebuffers[imageIndex], swapChainExtent, outPutAttachments.size() + 1);
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo_3rd, VK_SUBPASS_CONTENTS_INLINE);  // 3rd filter pass ********************************************************
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipline_filter_3rd.graphicsPipeline);
+
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipline_filter_3rd.pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+    vkCmdEndRenderPass(commandBuffer);
+
+    {
+        VkImageSubresourceLayers subresourceLayers = vkinit::subresource_layers();
+        VkOffset3D offset = vkinit::offset();
+        VkExtent3D extent = vkinit::extent(WIDTH, HEIGHT);
+        VkImageCopy imageCopy = vkinit::imageCopy(subresourceLayers, offset, subresourceLayers, offset, extent);
+
+        //copy 当前帧 渲染结果 到 History(Geometry) Buffer
+        for (auto i = 1; i < 4; i++) {
+            vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        }
+    }
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer!");

@@ -53,6 +53,7 @@ void main() {
     vec3 directIr=vec3(0.0,0.0,0.0);
     vec3 inDirectAlbedo=vec3(0.0,0.0,0.0);
     vec3 inDirectIR=vec3(0.0,0.0,0.0);
+    vec3 specular=vec3(0.0,0.0,0.0);
     vec3 lightPos=get_Random_QuadArea_Light_Pos(ubo.qLight.A.xyz,  ubo.qLight.B.xyz,  ubo.qLight.C.xyz, ubo.qLight.D.xyz, ubo.frameCount);
     float irradiance=dot(fragNormal,vec3(lightPos-interpolatedPosition));
     irradiance=clamp(irradiance,0.0f,1.0f)/(0.001f*distance(lightPos,interpolatedPosition)+0.01f);
@@ -65,10 +66,17 @@ void main() {
     else{
         diffuseColor=texture(textures[diffuse_id], fragTexCoord);
     }
+    specular=materialBuffer.data[material_id].specular;
     surfaceColor=diffuseColor.xyz;
     directAlbedo=surfaceColor;
-    outWorldPos=vec4(interpolatedPosition/10000+0.5f,1.0f);
-    outNormal=vec4(fragNormal/2+0.5,0.0);
+
+    vec4 curClipPos=ubo.proj*ubo.view*vec4(interpolatedPosition,1.0);
+    curClipPos.xyz/=curClipPos.w;
+    curClipPos.y=-curClipPos.y;
+    outWorldPos=curClipPos;
+
+    //outWorldPos=vec4(interpolatedPosition/10000+0.5f,1.0f);
+    outNormal=vec4(normalize(fragNormal)/2+0.5,0.0);
     
     vec3 lightColor = vec3(0.6, 0.6, 0.6);
     vec3 geometricNormal=fragNormal;
@@ -77,6 +85,7 @@ void main() {
     
     vec3 directIr_final=vec3(0.0,0.0,0.0);
     int spp= ubo.mode==5?NUM_SAMPLE:1;
+    spp=1;
     float w_sample=1.0/spp;
     for(int i=0;i<spp;i++){
         vec3 lightPosition= spp==1?lightPos:get_Random_QuadArea_Light_Pos(ubo.qLight.A.xyz,  ubo.qLight.B.xyz,  ubo.qLight.C.xyz, ubo.qLight.D.xyz, i,spp);
@@ -116,8 +125,11 @@ void main() {
       for (int rayDepth = 0; rayDepth < maxRayDepth && rayActive; rayDepth++) {
         //secondary ray (or more ray)
         vec3 indirectIr_final=vec3(0.0,0.0,0.0);
+        spp= ubo.mode==5?NUM_SAMPLE:1;
+        //spp=1;
+        w_sample=1.0/spp;
         for(int j=0;j<spp;j++){
-            rayDirection=getUniformSampledSpecularLobeDir(ubo.cameraPos.xyz,interpolatedPosition.xyz,geometricNormal,j,spp);
+            if(spp>1) rayDirection=getUniformSampledSpecularLobeDir(ubo.cameraPos.xyz,interpolatedPosition.xyz,geometricNormal,j,spp);
 
             rayQueryEXT secondaryRayQuery;
             rayQueryInitializeEXT(secondaryRayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, rayOrigin, 0.001f, rayDirection, 1000.0f);
@@ -187,6 +199,7 @@ void main() {
                     }
                     else {
                         rayActive = false;
+                        inDirectIR=vec3(0.0,0.0,0.0);
                     }
                     indirectIr_shadow_final+=inDirectIR*w_sample;
                 }
@@ -208,6 +221,7 @@ void main() {
         
             else {  //secondary ray not hit
                 rayActive = false;
+                inDirectIR=vec3(0.0,0.0,0.0);
             }
             indirectIr_final+=inDirectIR*w_sample;
         }
@@ -218,7 +232,7 @@ void main() {
     //outColor = vec4(directColor+indirectColor+diffuseColor.xyz*0.00f,1.0f);
     //outDirectIr=vec4(1.0,0.0,0.0,1.0);
     outIndAlbedo=vec4(inDirectAlbedo,1.0);
-    outIndIr=vec4(inDirectIR,1.0);
+    outIndIr=vec4((1-specular)*inDirectIR,1.0);
 
     //if(isLightSource(materialBuffer.data[material_id].emission)) outColor = vec4(materialBuffer.data[material_id].emission,1.0f);
 }

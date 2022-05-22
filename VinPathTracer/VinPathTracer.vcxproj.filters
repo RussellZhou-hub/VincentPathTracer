@@ -121,5 +121,11 @@
     <None Include="shaders\Rayquery\filter.frag">
       <Filter>Shaders\Rayquery\filter</Filter>
     </None>
+    <None Include="shaders\Rayquery\filter_2nd.frag">
+      <Filter>Shaders\Rayquery\filter</Filter>
+    </None>
+    <None Include="shaders\Rayquery\filter_3rd.frag">
+      <Filter>Shaders\Rayquery\filter</Filter>
+    </None>
   </ItemGroup>
 </Project>

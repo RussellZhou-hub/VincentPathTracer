@@ -61,6 +61,8 @@ public:
 	Attachment historyDepth;
 
 	Pipeline pipline_filter;
+	Pipeline pipline_filter_2nd;
+	Pipeline pipline_filter_3rd;
 
 	// Function pointers for ray tracing related stuff
 	PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR;

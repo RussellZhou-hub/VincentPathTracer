@@ -57,26 +57,28 @@ vec4 aTrous_indirectAlbedo(vec2 p);
 vec4 aTrous_directIr(vec2 p);
 
 void main() {
-    vec3 directColor = vec3(0.0, 0.0, 0.0);
-    vec3 indirectColor = vec3(0.0, 0.0, 0.0);
     vec3 surfaceColor=vec3(0.0,0.0,0.0);
-    //vec4 historyColor=imageLoad(historyColorImages[3],ivec2(gl_FragCoord.xy));
-   
-    //vec2 myFragCoord=getFragCoord(ubo.proj * ubo.view * ubo.model,interpolatedPosition);
-    //if(myFragCoord.x==gl_FragCoord.x) outDirectIr=vec4(0.5,0.0,0.0,1.0);
-    //else outDirectIr=vec4(0.0,0.5,0.0,1.0);
+    vec3 directIr = vec3(0.0, 0.0, 0.0);
+    vec3 indirectAlbedo = vec3(0.0, 0.0, 0.0);
+    vec3 indirectIr = vec3(0.0, 0.0, 0.0);
 
-    outIndAlbedo= ubo.mode==4?aTrous_indirectAlbedo(gl_FragCoord.xy):imageLoad(historyColorImages[2], ivec2(gl_FragCoord.xy));
+    surfaceColor=imageLoad(historyColorImages[0], ivec2(gl_FragCoord.xy)).xyz;
+    indirectAlbedo= ubo.mode==4?aTrous_indirectAlbedo(gl_FragCoord.xy).xyz:imageLoad(historyColorImages[2], ivec2(gl_FragCoord.xy)).xyz;
+    outIndAlbedo=vec4(indirectAlbedo,1.0f);
 
     if(ubo.mode==3 ||ubo.mode==4){
-            outDirectIr=aTrous_directIr(gl_FragCoord.xy);
-            outIndIr=aTrous_indirectIr(gl_FragCoord.xy);
+            directIr=aTrous_directIr(gl_FragCoord.xy).xyz;
+            outDirectIr=vec4(directIr,1.0);
+            indirectIr=aTrous_indirectIr(gl_FragCoord.xy).xyz;
+            outIndIr=vec4(indirectIr,1.0);
     }
     else{
-        outDirectIr=imageLoad(historyColorImages[1], ivec2(gl_FragCoord.xy));
-        outIndIr=imageLoad(historyColorImages[3], ivec2(gl_FragCoord.xy));
-    }   
+        directIr=imageLoad(historyColorImages[1], ivec2(gl_FragCoord.xy)).xyz;
+        indirectIr=imageLoad(historyColorImages[3], ivec2(gl_FragCoord.xy)).xyz;
+    }
 
+    outNormal=vec4(surfaceColor,1.0);
+    outColor=vec4(directIr*surfaceColor+0.2*indirectIr*indirectAlbedo+surfaceColor*0.01,1.0);
     //outDirectIr=vec4(0.5,0.0,0.0,1.0);
 
     //if(isLightSource(materialBuffer.data[material_id].emission)) outColor = vec4(materialBuffer.data[material_id].emission,1.0f);
@@ -183,7 +185,7 @@ vec4 aTrous_indirectIr(vec2 p){
     vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
     vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
 
-    float level=2;
+    float level=8;
     vec4 Ir_00 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
     Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level))*Ir_00;
     Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
@@ -229,7 +231,7 @@ vec4 aTrous_indirectAlbedo(vec2 p){
     vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
     vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
 
-    float level=2;
+    float level=8;
     vec4 Ir_00 = imageLoad(historyColorImages[2], ivec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
     Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level))*Ir_00;
     Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
@@ -275,7 +277,7 @@ vec4 aTrous_directIr(vec2 p){
     vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
     vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
 
-    float level=2;
+    float level=8;
     vec4 Ir_00 = imageLoad(historyColorImages[1], ivec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
     Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level))*Ir_00;
     Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level));

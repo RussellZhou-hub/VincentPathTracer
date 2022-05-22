@@ -60,11 +60,6 @@ void main() {
     vec3 directColor = vec3(0.0, 0.0, 0.0);
     vec3 indirectColor = vec3(0.0, 0.0, 0.0);
     vec3 surfaceColor=vec3(0.0,0.0,0.0);
-    //vec4 historyColor=imageLoad(historyColorImages[3],ivec2(gl_FragCoord.xy));
-   
-    //vec2 myFragCoord=getFragCoord(ubo.proj * ubo.view * ubo.model,interpolatedPosition);
-    //if(myFragCoord.x==gl_FragCoord.x) outDirectIr=vec4(0.5,0.0,0.0,1.0);
-    //else outDirectIr=vec4(0.0,0.5,0.0,1.0);
 
     outIndAlbedo= ubo.mode==4?aTrous_indirectAlbedo(gl_FragCoord.xy):imageLoad(historyColorImages[2], ivec2(gl_FragCoord.xy));
 
@@ -75,7 +70,7 @@ void main() {
     else{
         outDirectIr=imageLoad(historyColorImages[1], ivec2(gl_FragCoord.xy));
         outIndIr=imageLoad(historyColorImages[3], ivec2(gl_FragCoord.xy));
-    }   
+    }
 
     //outDirectIr=vec4(0.5,0.0,0.0,1.0);
 
@@ -183,7 +178,7 @@ vec4 aTrous_indirectIr(vec2 p){
     vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
     vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
 
-    float level=2;
+    float level=4;
     vec4 Ir_00 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
     Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level))*Ir_00;
     Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
@@ -229,7 +224,7 @@ vec4 aTrous_indirectAlbedo(vec2 p){
     vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
     vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
 
-    float level=2;
+    float level=4;
     vec4 Ir_00 = imageLoad(historyColorImages[2], ivec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
     Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level))*Ir_00;
     Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
@@ -275,7 +270,7 @@ vec4 aTrous_directIr(vec2 p){
     vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
     vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
 
-    float level=2;
+    float level=4;
     vec4 Ir_00 = imageLoad(historyColorImages[1], ivec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
     Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level))*Ir_00;
     Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
