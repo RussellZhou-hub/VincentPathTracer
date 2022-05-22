@@ -18,6 +18,22 @@ vec3 getSampledReflectedDirection(vec3 cameraPos,vec3 inRay,vec3 normal,vec2 uv,
     return normalize(weight*Ray+(1-weight)*normalize(RandomRay));
 }
 
+vec3 getUniformSampledSpecularLobeDir(vec3 cameraPos,vec3 inRay,vec3 normal,int s,int spp){
+    inRay=inRay-cameraPos;
+    float weight=0.5;  //reflection rate
+    vec3 Ray=reflect(inRay,normal);
+    vec3 right=normalize(cross(normal,Ray));
+    vec3 up=normalize(cross(normal,right));
+
+    float stride=1.0f/(sqrt(spp)+0.01f);
+    float u=mod(s,sqrt(spp))*stride; // (0,1)
+    float v=floor(s/(sqrt(spp)+0.01f))*stride; //(0,1)
+
+    Ray=Ray+weight*(right*(u-0.5)+up*(v-0.5));
+    
+    return normalize(Ray);
+}
+
 vec2 getFragCoord(mat4 pv,vec3 pos){          //从世界坐标获取对应的上一帧里的屏幕坐标
     vec4 clipPos=pv*vec4(pos,1.0);
       

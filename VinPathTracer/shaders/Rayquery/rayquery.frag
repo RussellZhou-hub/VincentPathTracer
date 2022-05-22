@@ -10,7 +10,7 @@
 #include "../includes/random.glsl"
 #include "../includes/utils.glsl"
 
-#define NUM_SAMPLE 64
+#define NUM_SAMPLE 32
 
 layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
@@ -115,95 +115,103 @@ void main() {
     if(true){
       for (int rayDepth = 0; rayDepth < maxRayDepth && rayActive; rayDepth++) {
         //secondary ray (or more ray)
-        rayQueryEXT secondaryRayQuery;
-        rayQueryInitializeEXT(secondaryRayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, rayOrigin, 0.001f, rayDirection, 1000.0f);
+        vec3 indirectIr_final=vec3(0.0,0.0,0.0);
+        for(int j=0;j<spp;j++){
+            rayDirection=getUniformSampledSpecularLobeDir(ubo.cameraPos.xyz,interpolatedPosition.xyz,geometricNormal,j,spp);
 
-        while (rayQueryProceedEXT(secondaryRayQuery));
+            rayQueryEXT secondaryRayQuery;
+            rayQueryInitializeEXT(secondaryRayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, rayOrigin, 0.001f, rayDirection, 1000.0f);
 
-        if (rayQueryGetIntersectionTypeEXT(secondaryRayQuery, true) != gl_RayQueryCommittedIntersectionNoneEXT) {
+            while (rayQueryProceedEXT(secondaryRayQuery));
+
+            if (rayQueryGetIntersectionTypeEXT(secondaryRayQuery, true) != gl_RayQueryCommittedIntersectionNoneEXT) {
         
-            int extensionPrimitiveIndex = rayQueryGetIntersectionPrimitiveIndexEXT(secondaryRayQuery, true);
-            vec2 extensionIntersectionBarycentric = rayQueryGetIntersectionBarycentricsEXT(secondaryRayQuery, true);
+                int extensionPrimitiveIndex = rayQueryGetIntersectionPrimitiveIndexEXT(secondaryRayQuery, true);
+                vec2 extensionIntersectionBarycentric = rayQueryGetIntersectionBarycentricsEXT(secondaryRayQuery, true);
 
-            ivec3 extensionIndices = ivec3(indexBuffer.data[3 * extensionPrimitiveIndex + 0], indexBuffer.data[3 * extensionPrimitiveIndex + 1], indexBuffer.data[3 * extensionPrimitiveIndex + 2]);
-            vec3 extensionBarycentric = vec3(1.0 - extensionIntersectionBarycentric.x - extensionIntersectionBarycentric.y, extensionIntersectionBarycentric.x, extensionIntersectionBarycentric.y);
+                ivec3 extensionIndices = ivec3(indexBuffer.data[3 * extensionPrimitiveIndex + 0], indexBuffer.data[3 * extensionPrimitiveIndex + 1], indexBuffer.data[3 * extensionPrimitiveIndex + 2]);
+                vec3 extensionBarycentric = vec3(1.0 - extensionIntersectionBarycentric.x - extensionIntersectionBarycentric.y, extensionIntersectionBarycentric.x, extensionIntersectionBarycentric.y);
       
-            vec3 extensionVertexA =vertexBuffer.data[extensionIndices.x].pos;
-            vec3 extensionVertexB=vertexBuffer.data[extensionIndices.y].pos;
-            vec3 extensionVertexC=vertexBuffer.data[extensionIndices.z].pos;
+                vec3 extensionVertexA =vertexBuffer.data[extensionIndices.x].pos;
+                vec3 extensionVertexB=vertexBuffer.data[extensionIndices.y].pos;
+                vec3 extensionVertexC=vertexBuffer.data[extensionIndices.z].pos;
 
-            vec2 extensionVertexA_texCoord =vertexBuffer.data[extensionIndices.x].texCoord;
-            vec2 extensionVertexB_texCoord=vertexBuffer.data[extensionIndices.y].texCoord;
-            vec2 extensionVertexC_texCoord=vertexBuffer.data[extensionIndices.z].texCoord;
+                vec2 extensionVertexA_texCoord =vertexBuffer.data[extensionIndices.x].texCoord;
+                vec2 extensionVertexB_texCoord=vertexBuffer.data[extensionIndices.y].texCoord;
+                vec2 extensionVertexC_texCoord=vertexBuffer.data[extensionIndices.z].texCoord;
     
-            vec3 extensionPosition = extensionVertexA * extensionBarycentric.x + extensionVertexB * extensionBarycentric.y + extensionVertexC * extensionBarycentric.z;
-            vec2 extensionTexCoord = extensionVertexA_texCoord * extensionBarycentric.x + extensionVertexB_texCoord * extensionBarycentric.y + extensionVertexC_texCoord * extensionBarycentric.z;
-            vec3 extensionNormal = normalize(cross(extensionVertexB - extensionVertexA, extensionVertexC - extensionVertexA));
+                vec3 extensionPosition = extensionVertexA * extensionBarycentric.x + extensionVertexB * extensionBarycentric.y + extensionVertexC * extensionBarycentric.z;
+                vec2 extensionTexCoord = extensionVertexA_texCoord * extensionBarycentric.x + extensionVertexB_texCoord * extensionBarycentric.y + extensionVertexC_texCoord * extensionBarycentric.z;
+                vec3 extensionNormal = normalize(cross(extensionVertexB - extensionVertexA, extensionVertexC - extensionVertexA));
 
-            vec3 extensionSurfaceColor;
-            int extensionDiffuse_id=materialIndexBuffer.data[extensionPrimitiveIndex].diffuse_idx;
-            uint extensionMaterial_id=materialIndexBuffer.data[extensionPrimitiveIndex].material_id;
-            if(gl_FragCoord.x>1918){
-                debugPrintfEXT("extensionDiffuse_id is %d  extensionMaterial_id is %d \n",extensionDiffuse_id,extensionMaterial_id);
-            }
-            if(extensionDiffuse_id==-1){
-                extensionSurfaceColor=materialBuffer.data[extensionMaterial_id].diffuse;
-            }
-            else{
-                extensionSurfaceColor=texture(textures[extensionDiffuse_id], extensionTexCoord).rgb;
-            }
-            inDirectAlbedo=extensionSurfaceColor;
+                vec3 extensionSurfaceColor;
+                int extensionDiffuse_id=materialIndexBuffer.data[extensionPrimitiveIndex].diffuse_idx;
+                uint extensionMaterial_id=materialIndexBuffer.data[extensionPrimitiveIndex].material_id;
+                if(gl_FragCoord.x>1918){
+                    debugPrintfEXT("extensionDiffuse_id is %d  extensionMaterial_id is %d \n",extensionDiffuse_id,extensionMaterial_id);
+                }
+                if(extensionDiffuse_id==-1){
+                    extensionSurfaceColor=materialBuffer.data[extensionMaterial_id].diffuse;
+                }
+                else{
+                    extensionSurfaceColor=texture(textures[extensionDiffuse_id], extensionTexCoord).rgb;
+                }
+                inDirectAlbedo=extensionSurfaceColor;
 
-            //vec2 RayHitPointFragCoord=getFragCoord(extensionPosition.xyz);
+                //vec2 RayHitPointFragCoord=getFragCoord(extensionPosition.xyz);
 
             
-            //int randomIndex = int(random(gl_FragCoord.xy, ubo.frameCount + rayDepth) * 2 + 40);
-            vec3 lightColor = vec3(0.6, 0.6, 0.6);
+                //int randomIndex = int(random(gl_FragCoord.xy, ubo.frameCount + rayDepth) * 2 + 40);
+                vec3 lightColor = vec3(0.6, 0.6, 0.6);
 
-            vec3 indirectIr_final=vec3(0.0,0.0,0.0);
-            spp= ubo.mode==5?NUM_SAMPLE:1;
-            w_sample=1.0/spp;
-            for(int i=0;i<spp;i++){
-                lightPosition= spp==1?lightPos:get_Random_QuadArea_Light_Pos(ubo.qLight.A.xyz,  ubo.qLight.B.xyz,  ubo.qLight.C.xyz, ubo.qLight.D.xyz, i,spp);
-                vec3 positionToLightDirection = normalize(lightPosition - extensionPosition);
+                vec3 indirectIr_shadow_final=vec3(0.0,0.0,0.0);
+                spp= ubo.mode==5?NUM_SAMPLE:1;
+                //spp=1;
+                w_sample=1.0/spp;
+                for(int i=0;i<spp;i++){
+                    lightPosition= spp==1?lightPos:get_Random_QuadArea_Light_Pos(ubo.qLight.A.xyz,  ubo.qLight.B.xyz,  ubo.qLight.C.xyz, ubo.qLight.D.xyz, i,spp);
+                    vec3 positionToLightDirection = normalize(lightPosition - extensionPosition);
 
-                vec3 shadowRayOrigin = extensionPosition;
-                vec3 shadowRayDirection = positionToLightDirection;
-                float shadowRayDistance = length(lightPosition - extensionPosition) - 0.001f;
+                    vec3 shadowRayOrigin = extensionPosition;
+                    vec3 shadowRayDirection = positionToLightDirection;
+                    float shadowRayDistance = length(lightPosition - extensionPosition) - 0.001f;
             
-                rayQueryEXT rayQuery;
-                rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, shadowRayOrigin, 0.001f, shadowRayDirection, shadowRayDistance);
+                    rayQueryEXT rayQuery;
+                    rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, shadowRayOrigin, 0.001f, shadowRayDirection, shadowRayDistance);
       
-                while (rayQueryProceedEXT(rayQuery));//secondary shadow ray
-                if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
-                    indirectColor += (1.0 / (rayDepth + 1)) * extensionSurfaceColor * lightColor  * dot(previousNormal, rayDirection) * dot(extensionNormal, positionToLightDirection);
-                    inDirectIR=(1.0 / (rayDepth + 1))* lightColor  * dot(previousNormal, rayDirection) * dot(extensionNormal, positionToLightDirection);
-                    //indirectColor=extensionSurfaceColor;
+                    while (rayQueryProceedEXT(rayQuery));//secondary shadow ray
+                    if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
+                        indirectColor += (1.0 / (rayDepth + 1)) * extensionSurfaceColor * lightColor  * dot(previousNormal, rayDirection) * dot(extensionNormal, positionToLightDirection);
+                        inDirectIR=(1.0 / (rayDepth + 1))* lightColor  * dot(previousNormal, rayDirection) * dot(extensionNormal, positionToLightDirection);
+                        //indirectColor=extensionSurfaceColor;
+                    }
+                    else {
+                        rayActive = false;
+                    }
+                    indirectIr_shadow_final+=inDirectIR*w_sample;
                 }
-                else {
-                    rayActive = false;
-                }
-                indirectIr_final+=inDirectIR*w_sample;
+                inDirectIR=indirectIr_shadow_final;
+
+                //vec3 hemisphere = uniformSampleHemisphere(vec2(random(gl_FragCoord.xy, ubo.frameCount + rayDepth), random(gl_FragCoord.xy, ubo.frameCount + rayDepth + 1)));
+                //vec3 alignedHemisphere = alignHemisphereWithCoordinateSystem(hemisphere, extensionNormal);
+
+                //reset rayOrigin...
+                rayOrigin = extensionPosition;
+                //rayDirection = alignedHemisphere;
+                previousNormal = extensionNormal;
+                /*
+                //RayHitPointFragCoord=getFragCoord(interpolatedPosition.xyz);
+                //RayHitPointFragCoord=getFragCoord(extensionPosition.xyz);
+                */
+                //indirectColor=extensionSurfaceColor;
             }
-            inDirectIR=indirectIr_final;
-
-            //vec3 hemisphere = uniformSampleHemisphere(vec2(random(gl_FragCoord.xy, ubo.frameCount + rayDepth), random(gl_FragCoord.xy, ubo.frameCount + rayDepth + 1)));
-            //vec3 alignedHemisphere = alignHemisphereWithCoordinateSystem(hemisphere, extensionNormal);
-
-            //reset rayOrigin...
-            rayOrigin = extensionPosition;
-            //rayDirection = alignedHemisphere;
-            previousNormal = extensionNormal;
-            /*
-            //RayHitPointFragCoord=getFragCoord(interpolatedPosition.xyz);
-            //RayHitPointFragCoord=getFragCoord(extensionPosition.xyz);
-            */
-            //indirectColor=extensionSurfaceColor;
-        }
         
-        else {  //secondary ray not hit
-            rayActive = false;
+            else {  //secondary ray not hit
+                rayActive = false;
+            }
+            indirectIr_final+=inDirectIR*w_sample;
         }
+        inDirectIR=indirectIr_final;
      }
    }
    
