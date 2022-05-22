@@ -27,7 +27,7 @@ layout(binding = 4) buffer MaterialBuffer { Material data[]; } materialBuffer;
 layout(binding = 5,set=0) uniform accelerationStructureEXT topLevelAS;
 layout(binding = 6) buffer VertexBuffer { Vertex data[]; } vertexBuffer;
 layout(binding = 7) buffer IndexBuffer { uint data[]; } indexBuffer;
-layout (binding = 8, rgba32f) uniform image2D historyColorImages[];
+layout (binding = 8, rgba32f) uniform image2D historyColorImages[];  //0:directAlbedo  1:directIR 2:indirectAlbedo 3:indirectIR 
 layout (binding = 9, r32f) uniform image2D historyDepthImage;
 
 layout(location = 0) in vec3 fragColor;
@@ -47,7 +47,7 @@ void main() {
     vec3 directColor = vec3(0.0, 0.0, 0.0);
     vec3 indirectColor = vec3(0.0, 0.0, 0.0);
     vec3 surfaceColor=vec3(0.0,0.0,0.0);
-    vec4 historyColor=imageLoad(historyColorImages[1],ivec2(gl_FragCoord.xy));
+    vec4 historyColor=imageLoad(historyColorImages[3],ivec2(gl_FragCoord.xy));
    
     vec2 myFragCoord=getFragCoord(ubo.proj * ubo.view * ubo.model,interpolatedPosition);
     if(myFragCoord.x==gl_FragCoord.x) outDirectIr=vec4(0.5,0.0,0.0,1.0);

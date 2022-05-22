@@ -157,28 +157,36 @@ void main() {
             //vec2 RayHitPointFragCoord=getFragCoord(extensionPosition.xyz);
 
             
-            int randomIndex = int(random(gl_FragCoord.xy, ubo.frameCount + rayDepth) * 2 + 40);
+            //int randomIndex = int(random(gl_FragCoord.xy, ubo.frameCount + rayDepth) * 2 + 40);
             vec3 lightColor = vec3(0.6, 0.6, 0.6);
 
-            vec3 positionToLightDirection = normalize(lightPosition - extensionPosition);
+            vec3 indirectIr_final=vec3(0.0,0.0,0.0);
+            spp= ubo.mode==5?NUM_SAMPLE:1;
+            w_sample=1.0/spp;
+            for(int i=0;i<spp;i++){
+                lightPosition= spp==1?lightPos:get_Random_QuadArea_Light_Pos(ubo.qLight.A.xyz,  ubo.qLight.B.xyz,  ubo.qLight.C.xyz, ubo.qLight.D.xyz, i,spp);
+                vec3 positionToLightDirection = normalize(lightPosition - extensionPosition);
 
-            vec3 shadowRayOrigin = extensionPosition;
-            vec3 shadowRayDirection = positionToLightDirection;
-            float shadowRayDistance = length(lightPosition - extensionPosition) - 0.001f;
+                vec3 shadowRayOrigin = extensionPosition;
+                vec3 shadowRayDirection = positionToLightDirection;
+                float shadowRayDistance = length(lightPosition - extensionPosition) - 0.001f;
             
-            rayQueryEXT rayQuery;
-            rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, shadowRayOrigin, 0.001f, shadowRayDirection, shadowRayDistance);
+                rayQueryEXT rayQuery;
+                rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, shadowRayOrigin, 0.001f, shadowRayDirection, shadowRayDistance);
       
-            while (rayQueryProceedEXT(rayQuery));//secondary shadow ray
-            if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
-                indirectColor += (1.0 / (rayDepth + 1)) * extensionSurfaceColor * lightColor  * dot(previousNormal, rayDirection) * dot(extensionNormal, positionToLightDirection);
-                inDirectIR=(1.0 / (rayDepth + 1))* lightColor  * dot(previousNormal, rayDirection) * dot(extensionNormal, positionToLightDirection);
-                //indirectColor=extensionSurfaceColor;
+                while (rayQueryProceedEXT(rayQuery));//secondary shadow ray
+                if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
+                    indirectColor += (1.0 / (rayDepth + 1)) * extensionSurfaceColor * lightColor  * dot(previousNormal, rayDirection) * dot(extensionNormal, positionToLightDirection);
+                    inDirectIR=(1.0 / (rayDepth + 1))* lightColor  * dot(previousNormal, rayDirection) * dot(extensionNormal, positionToLightDirection);
+                    //indirectColor=extensionSurfaceColor;
+                }
+                else {
+                    rayActive = false;
+                }
+                indirectIr_final+=inDirectIR*w_sample;
             }
-            else {
-                rayActive = false;
-            }
-            
+            inDirectIR=indirectIr_final;
+
             //vec3 hemisphere = uniformSampleHemisphere(vec2(random(gl_FragCoord.xy, ubo.frameCount + rayDepth), random(gl_FragCoord.xy, ubo.frameCount + rayDepth + 1)));
             //vec3 alignedHemisphere = alignHemisphereWithCoordinateSystem(hemisphere, extensionNormal);
 
