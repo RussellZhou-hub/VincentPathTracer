@@ -69,8 +69,8 @@ void main() {
     outIndAlbedo= ubo.mode==4?aTrous_indirectAlbedo(gl_FragCoord.xy):imageLoad(historyColorImages[2], ivec2(gl_FragCoord.xy));
 
     if(ubo.mode==3 ||ubo.mode==4){
-            outDirectIr=aTrous_directIr(gl_FragCoord.xy);
-            outIndIr=aTrous_indirectIr(gl_FragCoord.xy);
+            outDirectIr=0.7*aTrous_directIr(gl_FragCoord.xy);
+            outIndIr=0.6*aTrous_indirectIr(gl_FragCoord.xy);
     }
     else{
         outDirectIr=imageLoad(historyColorImages[1], ivec2(gl_FragCoord.xy));
@@ -103,9 +103,9 @@ float w_depth(vec2 p,vec2 q){   //weight of depth in the edge stop function in S
 }
 
 float w_normal(vec2 p,vec2 q){   //weight of normal in the edge stop function in SVGF
-    float sigma_n=16;
-    vec3 n_p=2*imageLoad(historyColorImages[4],ivec2(p.xy)).xyz-1;
-    vec3 n_q=2*imageLoad(historyColorImages[4],ivec2(q.xy)).xyz-1;
+    float sigma_n=96;
+    vec3 n_p=imageLoad(historyColorImages[4],ivec2(p.xy)).xyz;
+    vec3 n_q=imageLoad(historyColorImages[4],ivec2(q.xy)).xyz;
     float weight=pow(max(0,dot(n_p,n_q)),sigma_n);
     return weight;
 }
@@ -115,7 +115,8 @@ float w_lumin(vec2 p,vec2 q){//weight of Luminance in the edge stop function in 
     float epsil=0.01;
     float lumin_p=length(imageLoad(historyColorImages[1],ivec2(p.xy)).xyz);
     float lumin_q=length(imageLoad(historyColorImages[1],ivec2(q.xy)).xyz);
-    float weight=exp(-abs(lumin_p-lumin_q)/(sigma_l*variance(p).z+epsil));
+    //float weight=exp(-abs(lumin_p-lumin_q)/(sigma_l*variance(p).z+epsil));
+    float weight=exp(-abs(lumin_p-lumin_q)/(sigma_l*1.0+epsil));
     return weight;
 }
 
@@ -127,7 +128,7 @@ vec4 variance(vec2 p){
     int cnt=0;  //num of the history moment
     float variance_out;
     vec3 normal_p=2*imageLoad(historyColorImages[4],ivec2(p.xy)).xyz-1;
-    if(ubo.frameCount==0){
+    if(ubo.frameCount<2){
         vec3 curDirectIr=imageLoad(historyColorImages[1],ivec2(p.xy)).xyz;
         lumin=0.2126*curDirectIr.x+0.7152*curDirectIr.y+0.0722*curDirectIr.z;
         prevMoments=vec2(lumin,lumin*lumin);
@@ -137,36 +138,22 @@ vec4 variance(vec2 p){
         vec2 prevPos=getFragCoord(ubo.proj*ubo.view,interpolatedPosition);
         lumin=length(imageLoad(historyColorImages[1],ivec2(p.xy)).xyz);
         
-        vec3 normal_tmp=2*imageLoad(historyColorImages[4],ivec2(p.x+1,p.y)).xyz-1;
-        if(length(normal_p-normal_tmp)<0.3){  //valid history moment
-            prevMoments+=imageLoad(historyColorImages[6],ivec2(prevPos.x+1,prevPos.y)).zw/factor;
-            cnt++;
-        }
-        normal_tmp=2*imageLoad(historyColorImages[4],ivec2(p.x-1,p.y)).xyz-1;
-        if(length(normal_p-normal_tmp)<0.3){  //valid history moment
-            prevMoments+=imageLoad(historyColorImages[6],ivec2(prevPos.x-1,prevPos.y)).zw/factor;
-            cnt++;
-        }
-        normal_tmp=2*imageLoad(historyColorImages[4],ivec2(p.x,p.y+1)).xyz-1;
-        if(length(normal_p-normal_tmp)<0.3){  //valid history moment
-            prevMoments+=imageLoad(historyColorImages[6],ivec2(prevPos.x,prevPos.y+1)).zw/factor;
-            cnt++;
-        }
-        normal_tmp=2*imageLoad(historyColorImages[4],ivec2(p.x,p.y-1)).xyz-1;
-        if(length(normal_p-normal_tmp)<0.3){  //valid history moment
-            prevMoments+=imageLoad(historyColorImages[6],ivec2(prevPos.x,prevPos.y-1)).zw/factor;
-            cnt++;
-        }
-
-        
+        prevMoments+=imageLoad(historyColorImages[6],ivec2(prevPos.x+1,prevPos.y)).zw/factor;
+        cnt++;
+        prevMoments+=imageLoad(historyColorImages[6],ivec2(prevPos.x-1,prevPos.y)).zw/factor;
+        cnt++;
+        prevMoments+=imageLoad(historyColorImages[6],ivec2(prevPos.x,prevPos.y+1)).zw/factor;
+        cnt++;
+        prevMoments+=imageLoad(historyColorImages[6],ivec2(prevPos.x,prevPos.y-1)).zw/factor;
+        cnt++;
     }
     if(cnt>0){
         prevMoments/=cnt;
     }
-    float moment_alpha =max(1.0f/(cnt+1),0.5);
+    float moment_alpha =1.0f/(cnt+1);
     //calculate accumulated moments
-    float first_Moment=moment_alpha*prevMoments.x+(1-moment_alpha)*lumin;
-    float second_Moment=moment_alpha*prevMoments.y+(1-moment_alpha)*lumin*lumin;
+    float first_Moment=(1-moment_alpha)*prevMoments.x+moment_alpha*lumin;
+    float second_Moment=(1-moment_alpha)*prevMoments.y+moment_alpha*lumin*lumin;
     outColor.zw=vec2(first_Moment*factor,second_Moment*factor);
     outColor.xy=outColor.zw;
     variance_out=second_Moment-first_Moment*first_Moment;
@@ -183,7 +170,7 @@ vec4 aTrous_indirectIr(vec2 p){
     vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
     vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
 
-    float level=2;
+    float level=4;
     vec4 Ir_00 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
     Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level))*Ir_00;
     Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
