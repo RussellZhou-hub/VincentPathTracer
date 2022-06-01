@@ -70,11 +70,16 @@ VkApplication::VkApplication()
     fragShaderName = "basic.frag.spv";
     ubo = {};
     ubo.mode = 1;
-    ubo.frameCount = 0;
+    ubo.frameCount = 0;/*
     ubo.quadArealignt.A = glm::vec4(-949.0f, 1259.0f, -207.0f, 1.0f);
     ubo.quadArealignt.B = glm::vec4(-953.0f, 1259.0f, 207.0f, 1.0f);
     ubo.quadArealignt.C = glm::vec4(751.0f, 1333.0f, 115.0f, 1.0f);
-    ubo.quadArealignt.C = glm::vec4(787.0f, 1333.0f, -195.0f, 1.0f);
+    ubo.quadArealignt.D = glm::vec4(787.0f, 1333.0f, -195.0f, 1.0f);*/
+
+    ubo.quadArealignt.A = glm::vec4(-623.0f, 1259.0f, -50.0f, 1.0f);
+    ubo.quadArealignt.B = glm::vec4(-598.0f, 1259.0f, 50.0f, 1.0f);
+    ubo.quadArealignt.C = glm::vec4(227.0f, 1333.0f, 30.0f, 1.0f);
+    ubo.quadArealignt.D = glm::vec4(269.0f, 1333.0f, -40.0f, 1.0f);
     //camera.pos = glm::vec3(0.125f, 0.125f, 0.125f);  
     camera.pos = glm::vec3(100.0f, 100.0f, 100.0f);    //sponza
     //camera.pos = glm::vec3(11.19, 9.25, 20.89);//bathroom

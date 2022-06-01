@@ -54,6 +54,8 @@ void main() {
     vec3 inDirectAlbedo=vec3(0.0,0.0,0.0);
     vec3 inDirectIR=vec3(0.0,0.0,0.0);
     vec3 specular=vec3(0.0,0.0,0.0);
+    bool isShadow;
+    float modify=0.0;
     vec3 lightPos=get_Random_QuadArea_Light_Pos(ubo.qLight.A.xyz,  ubo.qLight.B.xyz,  ubo.qLight.C.xyz, ubo.qLight.D.xyz, ubo.frameCount);
     float irradiance=dot(fragNormal,vec3(lightPos-interpolatedPosition));
     irradiance=clamp(irradiance,0.0f,1.0f)/(0.001f*distance(lightPos,interpolatedPosition)+0.01f);
@@ -73,9 +75,9 @@ void main() {
     vec4 curClipPos=ubo.proj*ubo.view*vec4(interpolatedPosition,1.0);
     curClipPos.xyz/=curClipPos.w;
     curClipPos.y=-curClipPos.y;
-    outWorldPos=curClipPos;
+    //outWorldPos=curClipPos;
 
-    //outWorldPos=vec4(interpolatedPosition/10000+0.5f,1.0f);
+    outWorldPos=vec4((interpolatedPosition)/2500,1.0);
     outNormal=vec4(normalize(fragNormal)/2+0.5,0.0);
     
     vec3 lightColor = vec3(0.6, 0.6, 0.6);
@@ -103,15 +105,25 @@ void main() {
 	    if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionNoneEXT ) {
             directIr=lightColor* dot(geometricNormal, positionToLightDirection);
             directColor=directIr*directAlbedo;
+            isShadow=false;
 	    }
-        else{
+        else{  //in shadow
             directColor=vec3(0.0,0.0,0.0);
             directIr=directColor;
+            isShadow=true;
+            vec4 preDirectIr=imageLoad(historyColorImages[1], ivec2(gl_FragCoord.xy));
+            float preVar=imageLoad(historyColorImages[6], ivec2(gl_FragCoord.xy)).z;
+            //outWorldPos=vec4(preVar,0.0,0.0,1.0);
+            if(ubo.mode==4 &&preDirectIr.w==1.0){
+                modify=0.5;
+            }
         }
+        
         directIr_final+=directIr*w_sample;
     }
     outColor=vec4(directAlbedo,1.0);
-    outDirectIr=vec4(directIr_final,1.0);
+    outDirectIr=vec4(directIr_final,isShadow?0.0:1.0);
+    if(modify==0.5) outDirectIr.w=0.5;
     
     vec3 lightPosition=lightPos;
     vec3 rayOrigin = interpolatedPosition;

@@ -3,6 +3,8 @@
 #define WIDTH 1920
 #define HEIGHT 1080
 
+#define SQRT_OF_TREE 1.7302 
+
 bool isLightSource(vec3 emission){
 	if(length(emission)>0.01) return true;
 	else return false;
@@ -57,3 +59,9 @@ vec2 getFragCoord(mat4 pv,vec3 pos){          //从世界坐标获取对应的上一帧里的屏
     clipPos.y*=HEIGHT;
     return floor(clipPos.xy)+0.5;
 }
+
+float h[25] = float[](1.0 / 256.0, 1.0 / 64.0, 3.0 / 128.0, 1.0 / 64.0, 1.0 / 256.0,
+    1.0 / 64.0, 1.0 / 16.0, 3.0 / 32.0, 1.0 / 16.0, 1.0 / 64.0,
+    3.0 / 128.0, 3.0 / 32.0, 9.0 / 64.0, 3.0 / 32.0, 3.0 / 128.0,
+    1.0 / 64.0, 1.0 / 16.0, 3.0 / 32.0, 1.0 / 16.0, 1.0 / 64.0,
+    1.0 / 256.0, 1.0 / 64.0, 3.0 / 128.0, 1.0 / 64.0, 1.0 / 256.0);

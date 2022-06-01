@@ -49,7 +49,7 @@ float random(vec2 p)
 
 vec3 get_Random_QuadArea_Light_Pos(vec3 A,vec3 B,vec3 C,vec3 D,uint randomIndex){    //参数必须对齐，这里uint参数不能放前面  int需要N，vec3和vec4需要4N 所以vec4不能接在int后面
 
-    vec2 uv = vec2(random(gl_FragCoord.xy, randomIndex), random(vec2(gl_FragCoord.y,gl_FragCoord.x), randomIndex) );
+    vec2 uv = vec2(random(gl_FragCoord.xy, randomIndex), random(vec2(gl_FragCoord.y,gl_FragCoord.x), randomIndex) )*0.5;
 
     vec3 mixAB=mix(A,B,uv.x);
     vec3 mixCD=mix(D,D,uv.x);

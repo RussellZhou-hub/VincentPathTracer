@@ -59,6 +59,9 @@ public:
 	std::vector<Attachment> outPutAttachments;
 
 	Attachment historyDepth;
+	Attachment historyDirectIr;
+	Attachment historyInDIr;
+	Attachment historyInDAlbedo;
 
 	Pipeline pipline_filter;
 	Pipeline pipline_filter_2nd;

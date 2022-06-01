@@ -92,7 +92,7 @@ void RayQueryApp::mainLoop()
             glfwSetMouseButtonCallback(window, mouse_button_callback);
             scroll_process();
 
-            const float cameraSpeed = 100.0f * camera.getDeltaTime(glfwGetTime()); // adjust accordingly
+            const float cameraSpeed = 1000.0f * camera.getDeltaTime(glfwGetTime()); // adjust accordingly
             if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
                 camera.pos += cameraSpeed * camera.front;
                 ubo.frameCount = 1; //camera moved
@@ -284,6 +284,7 @@ void RayQueryApp::createDescriptorPool()
     poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
     poolSizes.push_back(vkinit::des_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)));
     poolSizes.push_back(vkinit::des_pool_size(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)));
+    poolSizes.push_back(vkinit::des_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)));
 
 
     VkDescriptorPoolCreateInfo poolInfo = vkinit::descriptorPool_create_info(static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT), static_cast<uint32_t>(poolSizes.size()), poolSizes.data());
@@ -310,6 +311,9 @@ void RayQueryApp::createDescriptorSetLayout()
     VkDescriptorSetLayoutBinding history_image_binding = vkinit::descriptorSet_layout_bindings(bindings.size(), inPutAttachments.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT);
     bindings.push_back(history_image_binding);//History color image array
     bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));//History depth image
+    bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));//historyDirectIr
+    bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));//historyInDIr
+    bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));//historyInDAlbedo
 
     VkDescriptorSetLayoutCreateInfo layoutInfo = vkinit::descriptorSetLayout_create_info(static_cast<uint32_t>(bindings.size()), bindings.data());
     VK_CHECK(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout), "failed to create descriptor set layout!");
@@ -350,6 +354,12 @@ void RayQueryApp::createDescriptorSets()
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, imageInfo_history_array, nullptr, nullptr, inPutAttachments.size()));
         VkDescriptorImageInfo depthImageInfo = vkinit::image_info(historyDepth.imageView, 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &depthImageInfo));
+        VkDescriptorImageInfo historyDirectIr_ImageInfo = vkinit::image_info(historyDirectIr.imageView);
+        descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &historyDirectIr_ImageInfo));
+        VkDescriptorImageInfo historyInDIr_ImageInfo = vkinit::image_info(historyDirectIr.imageView);
+        descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &historyInDIr_ImageInfo));
+        VkDescriptorImageInfo historyInDAlbedo_ImageInfo = vkinit::image_info(historyDirectIr.imageView);
+        descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &historyInDAlbedo_ImageInfo));
         
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -361,7 +371,7 @@ void RayQueryApp::createAttachments()  //create color attachments not including 
     for (auto i = 0; i < 6; i++) {
         Attachment attach;
         attach.format = swapChainImageFormat;
-        createImage(WIDTH, HEIGHT, attach.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, attach.image , attach.imageMemory);
+        createImage(WIDTH, HEIGHT, attach.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, attach.image , attach.imageMemory);
         attach.imageView=createImageView(attach.image, attach.format, VK_IMAGE_ASPECT_COLOR_BIT);
         VkImageMemoryBarrier imageMemoryBarrier=vkinit::barrier_des(attach.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
         VkCommandBuffer commandBuffer=beginSingleTimeCommands();
@@ -384,6 +394,18 @@ void RayQueryApp::createAttachments()  //create color attachments not including 
     historyDepth.format = findDepthFormat();
     createImage(WIDTH, HEIGHT, historyDepth.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, historyDepth.image, historyDepth.imageMemory);
     historyDepth.imageView = createImageView(historyDepth.image, historyDepth.format, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    historyDirectIr.format = swapChainImageFormat;
+    createImage(WIDTH, HEIGHT, historyDirectIr.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, historyDirectIr.image, historyDirectIr.imageMemory);
+    historyDirectIr.imageView = createImageView(historyDirectIr.image, historyDirectIr.format, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    historyInDIr.format = swapChainImageFormat;
+    createImage(WIDTH, HEIGHT, historyInDIr.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, historyInDIr.image, historyInDIr.imageMemory);
+    historyInDIr.imageView = createImageView(historyInDIr.image, historyInDIr.format, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    historyInDAlbedo.format = swapChainImageFormat;
+    createImage(WIDTH, HEIGHT, historyInDAlbedo.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, historyInDAlbedo.image, historyInDAlbedo.imageMemory);
+    historyInDAlbedo.imageView = createImageView(historyInDAlbedo.image, historyInDAlbedo.format, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void RayQueryApp::createFramebuffers()
@@ -592,6 +614,9 @@ void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
             vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
         }
         vkCmdCopyImage(commandBuffer, depthImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, historyDepth.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        vkCmdCopyImage(commandBuffer, outPutAttachments[1].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, historyDirectIr.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        vkCmdCopyImage(commandBuffer, outPutAttachments[2].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, historyInDAlbedo.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        vkCmdCopyImage(commandBuffer, outPutAttachments[3].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, historyInDIr.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
     }
 
     VkRenderPassBeginInfo renderPassInfo_2th = vkinit::renderPass_begin_info(pipline_filter.renderPass, swapChainFramebuffers[imageIndex], swapChainExtent, outPutAttachments.size() + 1);
@@ -617,10 +642,11 @@ void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
         VkImageCopy imageCopy = vkinit::imageCopy(subresourceLayers, offset, subresourceLayers, offset, extent);
 
         //copy 当前帧 渲染结果 到 History(Geometry) Buffer
-        for (auto i = 1; i < 4; i++) {
-            vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
-        }
+        //for (auto i = 1; i < 4; i++) {
+        //    vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        //}
         vkCmdCopyImage(commandBuffer, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[6].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);  //outColor to imageVar
+        //vkCmdCopyImage(commandBuffer, outPutAttachments[1].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, historyDirectIr.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
     }
 
     VkRenderPassBeginInfo renderPassInfo_2nd = vkinit::renderPass_begin_info(pipline_filter_2nd.renderPass, swapChainFramebuffers[imageIndex], swapChainExtent, outPutAttachments.size() + 1);
@@ -646,9 +672,10 @@ void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
         VkImageCopy imageCopy = vkinit::imageCopy(subresourceLayers, offset, subresourceLayers, offset, extent);
 
         //copy 当前帧 渲染结果 到 History(Geometry) Buffer
-        for (auto i = 1; i < 4; i++) {
-            vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
-        }
+        //for (auto i = 1; i < 4; i++) {
+        //    vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        //}
+        //vkCmdCopyImage(commandBuffer, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[6].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
     }
 
     VkRenderPassBeginInfo renderPassInfo_3rd = vkinit::renderPass_begin_info(pipline_filter_3rd.renderPass, swapChainFramebuffers[imageIndex], swapChainExtent, outPutAttachments.size() + 1);
@@ -674,9 +701,10 @@ void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
         VkImageCopy imageCopy = vkinit::imageCopy(subresourceLayers, offset, subresourceLayers, offset, extent);
 
         //copy 当前帧 渲染结果 到 History(Geometry) Buffer
-        for (auto i = 1; i < 4; i++) {
-            vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
-        }
+        //for (auto i = 1; i < 4; i++) {
+        //    vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        //}
+        vkCmdCopyImage(commandBuffer, outPutAttachments[0].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[0].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
     }
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
