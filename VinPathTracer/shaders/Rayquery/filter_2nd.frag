@@ -30,8 +30,8 @@ layout(binding = 7) buffer IndexBuffer { uint data[]; } indexBuffer;
 layout (binding = 8, rgba32f) uniform image2D historyColorImages[];  //0:directAlbedo  1:directIR 2:indirectAlbedo 3:indirectIR 4:normal 5:world 6:imageVar
 layout (binding = 9, r32f) uniform image2D historyDepthImage;
 layout (binding = 10, rgba32f) uniform image2D historyDirectIr;
-layout (binding = 11, rgba32f) uniform image2D historyIndAlbedo;
-layout (binding = 12, rgba32f) uniform image2D historyIndIr;
+layout (binding = 11, rgba32f) uniform image2D historyIndIr;
+layout (binding = 12, rgba32f) uniform image2D historyIndAlbedo;
 
 layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec3 fragNormal;
@@ -49,6 +49,7 @@ layout(location = 6) out vec4 outDepth;
 vec3 fragPos;
 bool isShadow=false;
 vec2 RayHitPointFragCoord;
+vec4 next_itr_Var=vec4(0.0,0.0,0.0,0.0);
 
 float weight(vec2 p,vec2 q);
 float w_depth(vec2 p,vec2 q);
@@ -90,6 +91,7 @@ void main() {
         
     }   
 
+    imageStore(historyColorImages[6],ivec2(gl_FragCoord.xy),next_itr_Var);
     //outDirectIr=vec4(0.5,0.0,0.0,1.0);
 
     //if(isLightSource(materialBuffer.data[material_id].emission)) outColor = vec4(materialBuffer.data[material_id].emission,1.0f);
@@ -144,7 +146,7 @@ float w_lumin(vec2 p,vec2 q){//weight of Luminance in the edge stop function in 
 }
 
 vec4 variance(vec2 p){
-    vec4 var=imageLoad(historyColorImages[6],ivec2(gl_FragCoord.xy));
+    vec4 var=imageLoad(historyColorImages[6],ivec2(p));
     return var;
 }
 
@@ -309,7 +311,7 @@ vec4 aTrous_directIr_5_5(vec2 p){
         }
     }
     Numerator_var/=Denominator*Denominator;
-    imageStore(historyColorImages[6],ivec2(gl_FragCoord.xy),Numerator_var);
+    next_itr_Var=Numerator_var;
 
     vec4 outTrous=Numerator/Denominator;
     outTrous.w=1.0;

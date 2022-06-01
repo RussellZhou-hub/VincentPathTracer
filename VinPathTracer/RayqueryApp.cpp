@@ -356,9 +356,9 @@ void RayQueryApp::createDescriptorSets()
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &depthImageInfo));
         VkDescriptorImageInfo historyDirectIr_ImageInfo = vkinit::image_info(historyDirectIr.imageView);
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &historyDirectIr_ImageInfo));
-        VkDescriptorImageInfo historyInDIr_ImageInfo = vkinit::image_info(historyDirectIr.imageView);
+        VkDescriptorImageInfo historyInDIr_ImageInfo = vkinit::image_info(historyInDIr.imageView);
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &historyInDIr_ImageInfo));
-        VkDescriptorImageInfo historyInDAlbedo_ImageInfo = vkinit::image_info(historyDirectIr.imageView);
+        VkDescriptorImageInfo historyInDAlbedo_ImageInfo = vkinit::image_info(historyInDAlbedo.imageView);
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &historyInDAlbedo_ImageInfo));
         
 

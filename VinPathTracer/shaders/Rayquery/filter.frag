@@ -30,8 +30,8 @@ layout(binding = 7) buffer IndexBuffer { uint data[]; } indexBuffer;
 layout (binding = 8, rgba32f) uniform image2D historyColorImages[];  //0:directAlbedo  1:directIR 2:indirectAlbedo 3:indirectIR 4:normal 5:world 6:imageVar
 layout (binding = 9, r32f) uniform image2D historyDepthImage;
 layout (binding = 10, rgba32f) uniform image2D historyDirectIr;
-layout (binding = 11, rgba32f) uniform image2D historyIndAlbedo;
-layout (binding = 12, rgba32f) uniform image2D historyIndIr;
+layout (binding = 11, rgba32f) uniform image2D historyIndIr;
+layout (binding = 12, rgba32f) uniform image2D historyIndAlbedo;
 
 layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec3 fragNormal;
