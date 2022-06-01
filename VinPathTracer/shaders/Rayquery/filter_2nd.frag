@@ -91,7 +91,8 @@ void main() {
         
     }   
 
-    imageStore(historyColorImages[6],ivec2(gl_FragCoord.xy),next_itr_Var);
+    //next_itr_Var=vec4(0.0,0.0,variance(gl_FragCoord.xy).z,1.0);
+    //imageStore(historyColorImages[6],ivec2(gl_FragCoord.xy),next_itr_Var);
     //outDirectIr=vec4(0.5,0.0,0.0,1.0);
 
     //if(isLightSource(materialBuffer.data[material_id].emission)) outColor = vec4(materialBuffer.data[material_id].emission,1.0f);
@@ -129,10 +130,11 @@ float w_normal(vec2 p,vec2 q){   //weight of normal in the edge stop function in
 float w_pos(vec2 p,vec2 q){   //weight of pos in the edge stop function add by me
     float sigma_x=128;
     float epsil=0.0001;
-    vec3 x_p=imageLoad(historyColorImages[5],ivec2(p.xy)).xyz;
-    vec3 x_q=imageLoad(historyColorImages[5],ivec2(q.xy)).xyz;
-    float weight=min(1.0f,exp(-distance(x_p,x_q)/(sigma_x+epsil)));
-    return weight;
+    vec4 x_p=imageLoad(historyColorImages[5],ivec2(p.xy));
+    vec4 x_q=imageLoad(historyColorImages[5],ivec2(q.xy));
+    float weight=min(1.0f,exp(-distance(x_p.xyz,x_q.xyz)/(sigma_x+epsil)));
+    float weight_ID=min(1.0f,exp(-distance(x_p.w,x_q.w)/(sigma_x+epsil)));
+    return weight*weight_ID;
 }
 
 float w_lumin(vec2 p,vec2 q){//weight of Luminance in the edge stop function in SVGF
@@ -140,8 +142,9 @@ float w_lumin(vec2 p,vec2 q){//weight of Luminance in the edge stop function in 
     float epsil=0.01;
     float lumin_p=length(imageLoad(historyDirectIr,ivec2(p.xy)).xyz);
     float lumin_q=length(imageLoad(historyDirectIr,ivec2(q.xy)).xyz);
-    float weight=exp(-abs(lumin_p-lumin_q)/(sigma_l*variance(p).z+epsil));
-    //float weight=exp(-abs(lumin_p-lumin_q)/(sigma_l+epsil));
+    float diff=abs(distance(lumin_p,lumin_q)/SQRT_OF_TREE);
+    vec4 var=variance(p);
+    float weight=exp(-diff/(sigma_l*sqrt(var).z+epsil));
     return weight;
 }
 
@@ -307,14 +310,14 @@ vec4 aTrous_directIr_5_5(vec2 p){
             float w=weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+i*level,gl_FragCoord.y+j*level));
             Numerator+=h[h_idx]*w*imageLoad(historyDirectIr, ivec2(gl_FragCoord.x+i*level,gl_FragCoord.y+j*level));
             Denominator+=h[h_idx]*w;
-            Numerator_var+=h[h_idx]*h[h_idx]*w*w*variance(vec2(gl_FragCoord.x+i*level,gl_FragCoord.y+j*level));
+            //Numerator_var+=h[h_idx]*h[h_idx]*w*w*variance(vec2(gl_FragCoord.x+i*level,gl_FragCoord.y+j*level));
         }
     }
     Numerator_var/=Denominator*Denominator;
-    next_itr_Var=Numerator_var;
+    //next_itr_Var=Numerator_var;
 
     vec4 outTrous=Numerator/Denominator;
-    outTrous.w=1.0;
+    outTrous.w=imageLoad(historyDirectIr, ivec2(gl_FragCoord.xy)).w;
 
     return outTrous;
 }

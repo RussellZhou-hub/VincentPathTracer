@@ -31,6 +31,9 @@ layout(binding = 6) buffer VertexBuffer { Vertex data[]; } vertexBuffer;
 layout(binding = 7) buffer IndexBuffer { uint data[]; } indexBuffer;
 layout (binding = 8, rgba32f) uniform image2D historyColorImages[];
 layout (binding = 9, r32f) uniform image2D historyDepthImage;
+layout (binding = 10, rgba32f) uniform image2D historyDirectIr;
+layout (binding = 11, rgba32f) uniform image2D historyIndIr;
+layout (binding = 12, rgba32f) uniform image2D historyIndAlbedo;
 
 layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec3 fragNormal;
@@ -77,7 +80,7 @@ void main() {
     curClipPos.y=-curClipPos.y;
     //outWorldPos=curClipPos;
 
-    outWorldPos=vec4((interpolatedPosition)/2500,1.0);
+    outWorldPos=vec4((interpolatedPosition)/2500,material_id/25.0f);
     outNormal=vec4(normalize(fragNormal)/2+0.5,0.0);
     
     vec3 lightColor = vec3(0.6, 0.6, 0.6);
@@ -111,9 +114,12 @@ void main() {
             directColor=vec3(0.0,0.0,0.0);
             directIr=directColor;
             isShadow=true;
-            vec4 preDirectIr=imageLoad(historyColorImages[1], ivec2(gl_FragCoord.xy));
+            vec4 preDirectIr=imageLoad(historyDirectIr, ivec2(gl_FragCoord.xy));
             float preVar=imageLoad(historyColorImages[6], ivec2(gl_FragCoord.xy)).z;
             //outWorldPos=vec4(preVar,0.0,0.0,1.0);
+            if((ubo.mode==3||ubo.mode==4)&&ubo.frameCount>2&&preVar!=0.0&&preDirectIr.w!=0.0){ //pre not in shadow
+                directIr=mix(directIr,preDirectIr.xyz,0.9);
+            }
             if(ubo.mode==4 &&preDirectIr.w==1.0){
                 modify=0.5;
             }
@@ -123,7 +129,7 @@ void main() {
     }
     outColor=vec4(directAlbedo,1.0);
     outDirectIr=vec4(directIr_final,isShadow?0.0:1.0);
-    if(modify==0.5) outDirectIr.w=0.5;
+    //if(modify==0.5) outDirectIr.w=0.5;
     
     vec3 lightPosition=lightPos;
     vec3 rayOrigin = interpolatedPosition;
