@@ -1,8 +1,14 @@
+#include <stdio.h>          // printf, fprintf
+#include <stdlib.h>         // abort
 #include "RayqueryApp.h"
 #include "vk_initializers.h"
 #include"VulkanDevice.h"
 #include"VulkanTools.h"
 #include "Utils.h"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
+
 //#include "stb_image.h"
 //#include"VkApp.h"
 
@@ -15,6 +21,11 @@
 		assert(res == VK_SUCCESS);																		\
 	}																									\
 }
+
+//#define IMGUI_UNLIMITED_FRAME_RATE
+#ifdef _DEBUG
+#define IMGUI_VULKAN_DEBUG_REPORT
+#endif
 
 RayQueryApp::RayQueryApp()
 {
@@ -32,6 +43,74 @@ void RayQueryApp::run()
     initVulkan();
     mainLoop();
     cleanup();
+}
+
+void RayQueryApp::init_imgui()
+{
+    //1: create descriptor pool for IMGUI
+    // the size of the pool is very oversize, but it's copied from imgui demo itself.
+    VkDescriptorPoolSize pool_sizes[] =
+    {
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+    };
+
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000;
+    pool_info.poolSizeCount = std::size(pool_sizes);
+    pool_info.pPoolSizes = pool_sizes;
+
+    VkDescriptorPool imguiPool;
+    VK_CHECK(vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiPool),"ImGui descriptorpool create");
+
+
+    // 2: initialize imgui library
+
+    //this initializes the core structures of imgui
+    ImGui::CreateContext();
+
+    //this initializes imgui for GLFW
+    ImGui_ImplGlfw_InitForVulkan(window, true);
+    //this initializes imgui for Vulkan
+    ImGui_ImplVulkan_InitInfo init_info = vkinit::init_info(instance, physicalDevice, device, findQueueFamilies(physicalDevice).computeFamily.value(),
+        computeQueue, VK_NULL_HANDLE, imguiPool, 0, 2, MAX_FRAMES_IN_FLIGHT, VK_SAMPLE_COUNT_1_BIT, NULL, check_vk_result);
+    ImGui_ImplVulkan_Init(&init_info, renderPass);
+
+    
+    /*
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance = _instance;
+    init_info.PhysicalDevice = _chosenGPU;
+    init_info.Device = _device;
+    init_info.Queue = _graphicsQueue;
+    init_info.DescriptorPool = imguiPool;
+    init_info.MinImageCount = 3;
+    init_info.ImageCount = 3;
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    */
+    
+
+    //execute a gpu command to upload imgui font textures
+    VkCommandBuffer command_buffer = beginSingleTimeCommands();
+    ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+    endSingleTimeCommands(command_buffer);
+
+    //clear font textures from cpu data
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
+
+    //add the destroy the imgui created structures
+    //vkDestroyDescriptorPool(device, imguiPool, nullptr);
 }
 
 void RayQueryApp::initVulkan()
@@ -74,6 +153,12 @@ void RayQueryApp::initVulkan()
 
 void RayQueryApp::mainLoop()
 {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+    init_imgui();
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
@@ -119,15 +204,44 @@ void RayQueryApp::mainLoop()
             if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) ubo.mode = 4;
             if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) ubo.mode = 5;
         }
+        // Start the Dear ImGui frame
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        //imgui commands
+        ImGui::ShowDemoWindow();
+
+
+        ImGui::Begin("My name is ImGui window");
+        ImGui::Text("Hello there adventure!");
+        ImGui::End();
+
         drawFrame();
+        //ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[currentFrame]);
+        //ImGui::Text("Hello, world %d", 123);
+        //if (ImGui::Button("Save")) {}
+            //MySaveFunction();
+        //ImGui::InputText("string", buf, IM_ARRAYSIZE(buf));
+            //float f;
+        //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
     }
 
     vkDeviceWaitIdle(device);
 }
 
+void RayQueryApp::cleanup()
+{
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    VkApplication::cleanup();
+}
+
 
 void RayQueryApp::drawFrame()
 {
+    ImGui::Render();
+
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
@@ -691,6 +805,8 @@ void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipline_filter_3rd.pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 
     vkCmdEndRenderPass(commandBuffer);
 

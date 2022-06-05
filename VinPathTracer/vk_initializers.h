@@ -2,6 +2,7 @@
 #include<vector>
 #include<string>
 #include "vk_types.h"
+#include <imgui_impl_vulkan.h>
 
 namespace vkinit {
 	//vulkan init code goes here
@@ -122,4 +123,19 @@ namespace vkinit {
 	uint32_t subpass,
 	VkPipeline basePipelineHandle= VK_NULL_HANDLE);
 	//******************************************end********************************************************
+	//******************************************ImGui******************************************************
+	ImGui_ImplVulkan_InitInfo init_info(VkInstance Instance,
+	VkPhysicalDevice PhysicalDevice,
+	VkDevice Device,
+	uint32_t QueueFamily,
+	VkQueue Queue,
+	VkPipelineCache PipelineCache,
+	VkDescriptorPool DescriptorPool,
+	uint32_t Subpass,
+	uint32_t MinImageCount,          // >= 2
+	uint32_t mageCount,             // >= MinImageCount
+	VkSampleCountFlagBits MSAASamples,            // >= VK_SAMPLE_COUNT_1_BIT (0 -> default to VK_SAMPLE_COUNT_1_BIT)
+	const VkAllocationCallbacks* Allocator,
+	void (*CheckVkResultFn)(VkResult err)
+	);
 }

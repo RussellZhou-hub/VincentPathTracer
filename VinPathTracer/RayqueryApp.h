@@ -33,9 +33,10 @@ public:
 	void run();
 
 	
-
+	void init_imgui();
 	void initVulkan();
 	void mainLoop();
+	void cleanup();
 	void drawFrame();
 	void addRayQueryExtension();
 	void setModelPath(std::string path);

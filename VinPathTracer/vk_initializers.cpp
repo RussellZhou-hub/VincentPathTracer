@@ -1,5 +1,6 @@
 #include"vk_initializers.h"
 #include <iostream>
+#include <imgui_impl_vulkan.h>
 
 VkCommandPoolCreateInfo vkinit::command_pool_create_info(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags)
 {
@@ -844,4 +845,23 @@ VkGraphicsPipelineCreateInfo vkinit::graphicsPipeline_create_info(uint32_t stage
 	info.subpass = subpass;
 	info.basePipelineHandle = basePipelineHandle;
 	return info;
+}
+
+ImGui_ImplVulkan_InitInfo vkinit::init_info(VkInstance Instance, VkPhysicalDevice PhysicalDevice, VkDevice Device, uint32_t QueueFamily, VkQueue Queue, VkPipelineCache PipelineCache, VkDescriptorPool DescriptorPool, uint32_t Subpass, uint32_t MinImageCount, uint32_t imageCount, VkSampleCountFlagBits MSAASamples, const VkAllocationCallbacks* Allocator, void(*CheckVkResultFn)(VkResult err))
+{
+	ImGui_ImplVulkan_InitInfo init_info = {};
+	init_info.Instance = Instance;
+	init_info.PhysicalDevice = PhysicalDevice;
+	init_info.Device = Device;
+	init_info.QueueFamily = QueueFamily;
+	init_info.Queue = Queue;
+	init_info.PipelineCache = PipelineCache;
+	init_info.DescriptorPool = DescriptorPool;
+	init_info.Subpass = 0;
+	init_info.MinImageCount = MinImageCount;
+	init_info.ImageCount = imageCount;
+	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	init_info.Allocator = Allocator;
+	init_info.CheckVkResultFn = CheckVkResultFn;
+	return init_info;
 }
