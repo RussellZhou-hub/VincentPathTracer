@@ -256,7 +256,8 @@ void main() {
     //outColor = vec4(directColor+indirectColor+diffuseColor.xyz*0.00f,1.0f);
     //outDirectIr=vec4(1.0,0.0,0.0,1.0);
     outIndAlbedo=vec4(inDirectAlbedo,1.0);
-    outIndIr=vec4((1-specular)*inDirectIR,1.0);
+    outIndIr=vec4(inDirectIR,1.0);
+    //outIndIr=vec4(specularRate*inDirectIR,1.0);
 
     //if(isLightSource(materialBuffer.data[material_id].emission)) outColor = vec4(materialBuffer.data[material_id].emission,1.0f);
 }
