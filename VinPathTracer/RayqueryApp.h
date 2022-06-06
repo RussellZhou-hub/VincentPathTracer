@@ -26,6 +26,7 @@
 #include <unordered_map>
 #include"VkApp.h"
 #include "VulkanBuffer.h"
+#include "imgui.h"
 
 class RayQueryApp : VkApplication {
 public:
@@ -54,6 +55,11 @@ public:
 	uint64_t getBufferDeviceAddress(VkBuffer buffer);
 	void createBottomLevelAccelerationStructure();
 	void createTopLevelAccelerationStructure();
+
+	//ImGui
+	ImGuiIO tmp;
+	ImGuiIO &io = tmp;
+	VkDescriptorPool imguiPool;
 
 	//attachment stuff
 	std::vector<Attachment> inPutAttachments;

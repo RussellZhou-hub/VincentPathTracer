@@ -35,6 +35,7 @@ RayQueryApp::RayQueryApp()
     
     setShaderFileName("Rayquery/rayquery.vert.spv", "Rayquery/rayquery.frag.spv");
     //setShaderFileName("basic.vert.spv", "basic.frag.spv");
+    
 }
 
 void RayQueryApp::run()
@@ -71,14 +72,29 @@ void RayQueryApp::init_imgui()
     pool_info.poolSizeCount = std::size(pool_sizes);
     pool_info.pPoolSizes = pool_sizes;
 
-    VkDescriptorPool imguiPool;
+    
     VK_CHECK(vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiPool),"ImGui descriptorpool create");
 
 
     // 2: initialize imgui library
 
     //this initializes the core structures of imgui
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    io = ImGui::GetIO(); (void)io;
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+
+
+
+
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
 
     //this initializes imgui for GLFW
     ImGui_ImplGlfw_InitForVulkan(window, true);
@@ -86,21 +102,6 @@ void RayQueryApp::init_imgui()
     ImGui_ImplVulkan_InitInfo init_info = vkinit::init_info(instance, physicalDevice, device, findQueueFamilies(physicalDevice).computeFamily.value(),
         computeQueue, VK_NULL_HANDLE, imguiPool, 0, 2, MAX_FRAMES_IN_FLIGHT, VK_SAMPLE_COUNT_1_BIT, NULL, check_vk_result);
     ImGui_ImplVulkan_Init(&init_info, renderPass);
-
-    
-    /*
-    ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.Instance = _instance;
-    init_info.PhysicalDevice = _chosenGPU;
-    init_info.Device = _device;
-    init_info.Queue = _graphicsQueue;
-    init_info.DescriptorPool = imguiPool;
-    init_info.MinImageCount = 3;
-    init_info.ImageCount = 3;
-    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    */
-    
-
     //execute a gpu command to upload imgui font textures
     VkCommandBuffer command_buffer = beginSingleTimeCommands();
     ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
@@ -153,10 +154,6 @@ void RayQueryApp::initVulkan()
 
 void RayQueryApp::mainLoop()
 {
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    ImGui::StyleColorsDark();
     init_imgui();
 
     while (!glfwWindowShouldClose(window)) {
@@ -172,9 +169,13 @@ void RayQueryApp::mainLoop()
             //glfwSetCursorPosCallback(window, (GLFWcursorposfun)mouse_callback);
             double xpos, ypos;
             glfwGetCursorPos(window, &xpos, &ypos);
-            mouse_callback(window, xpos, ypos);
+            glfwSetMouseButtonCallback(window, ImGui_ImplGlfw_MouseButtonCallback);
+            ImGuiIO& io = ImGui::GetIO();
+            if (!io.WantCaptureMouse) {
+                glfwSetMouseButtonCallback(window, mouse_button_callback);
+                mouse_callback(window, xpos, ypos);
+            }
             glfwSetScrollCallback(window, scroll_callback);
-            glfwSetMouseButtonCallback(window, mouse_button_callback);
             scroll_process();
 
             const float cameraSpeed = 1000.0f * camera.getDeltaTime(glfwGetTime()); // adjust accordingly
@@ -211,9 +212,10 @@ void RayQueryApp::mainLoop()
         //imgui commands
         ImGui::ShowDemoWindow();
 
-
+        bool svgf;
         ImGui::Begin("My name is ImGui window");
         ImGui::Text("Hello there adventure!");
+        ImGui::Checkbox("svgf", &svgf);
         ImGui::End();
 
         drawFrame();
