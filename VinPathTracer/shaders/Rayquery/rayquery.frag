@@ -56,7 +56,8 @@ void main() {
     vec3 directIr=vec3(0.0,0.0,0.0);
     vec3 inDirectAlbedo=vec3(0.0,0.0,0.0);
     vec3 inDirectIR=vec3(0.0,0.0,0.0);
-    vec3 specular=vec3(0.0,0.0,0.0);
+    vec3 specular=vec3(0.3,0.3,0.3);
+    float specularRate=0.3;
     bool isShadow;
     float modify=0.0;
     vec3 lightPos=get_Random_QuadArea_Light_Pos(ubo.qLight.A.xyz,  ubo.qLight.B.xyz,  ubo.qLight.C.xyz, ubo.qLight.D.xyz, ubo.frameCount);
@@ -72,6 +73,11 @@ void main() {
         diffuseColor=texture(textures[diffuse_id], fragTexCoord);
     }
     specular=materialBuffer.data[material_id].specular;
+    specularRate=specular.z;
+    if(specularRate<0.3){
+        specularRate=0.3;
+    }
+    //if(material_id==19) specularRate=1.0;
     surfaceColor=diffuseColor.xyz;
     directAlbedo=surfaceColor;
 
@@ -133,7 +139,7 @@ void main() {
     
     vec3 lightPosition=lightPos;
     vec3 rayOrigin = interpolatedPosition;
-    vec3 rayDirection = getSampledReflectedDirection(ubo.cameraPos.xyz,interpolatedPosition.xyz,geometricNormal,gl_FragCoord.xy,ubo.frameCount);
+    vec3 rayDirection = getSampledReflectedDirection(ubo.cameraPos.xyz,interpolatedPosition.xyz,geometricNormal,gl_FragCoord.xy,ubo.frameCount,specularRate);
     vec3 previousNormal = geometricNormal;
     float secondaryRayDistance = length(lightPosition - interpolatedPosition) - 0.001f;
 

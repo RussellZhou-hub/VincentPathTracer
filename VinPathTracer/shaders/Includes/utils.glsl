@@ -20,6 +20,16 @@ vec3 getSampledReflectedDirection(vec3 cameraPos,vec3 inRay,vec3 normal,vec2 uv,
     return normalize(weight*Ray+(1-weight)*normalize(RandomRay));
 }
 
+vec3 getSampledReflectedDirection(vec3 cameraPos, vec3 inRay, vec3 normal, vec2 uv, float seed,float specularRate) {
+    inRay = inRay - cameraPos;
+    vec3 Ray = reflect(inRay, normal);
+    float theta = acos(1 - random(uv, seed));  //[0,pi/2]
+    float phi = 2 * M_PI * random(vec2(uv.y, uv.x), seed);
+    vec3 RandomRay = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+    float weight = specularRate;  //reflection rate
+    return normalize(weight * Ray + (1 - weight) * normalize(RandomRay));
+}
+
 vec3 getUniformSampledSpecularLobeDir(vec3 cameraPos,vec3 inRay,vec3 normal,int s,int spp){
     inRay=inRay-cameraPos;
     float lobe_range=0.0;
