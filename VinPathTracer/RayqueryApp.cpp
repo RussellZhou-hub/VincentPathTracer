@@ -84,13 +84,6 @@ void RayQueryApp::init_imgui()
     ImGui::CreateContext();
     io = ImGui::GetIO(); (void)io;
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-
-
-
-
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
     // Setup Dear ImGui style
@@ -213,10 +206,17 @@ void RayQueryApp::mainLoop()
         ImGui::ShowDemoWindow();
 
         bool svgf;
+        int e;
         ImGui::Begin("My name is ImGui window");
         ImGui::Text("Hello there adventure!");
-        ImGui::Checkbox("svgf", &svgf);
+        ImGui::Checkbox("svgf_box", &svgf);
+        ImGui::RadioButton("raw image", &e, 0); ImGui::SameLine();
+        ImGui::RadioButton("mvec", &e, 1); ImGui::SameLine();
+        ImGui::RadioButton("svgf", &e, 2); ImGui::SameLine();
+        ImGui::RadioButton("ours", &e, 3); ImGui::SameLine();
+        ImGui::RadioButton("ground truth", &e, 4);
         ImGui::End();
+        ubo.mode = e + 1;
 
         drawFrame();
         //ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[currentFrame]);
