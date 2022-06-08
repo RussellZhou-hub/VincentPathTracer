@@ -69,6 +69,7 @@ public:
 	Attachment historyDirectIr;
 	Attachment historyInDIr;
 	Attachment historyInDAlbedo;
+	Attachment historyFinal;
 
 	Pipeline pipline_filter;
 	Pipeline pipline_filter_2nd;

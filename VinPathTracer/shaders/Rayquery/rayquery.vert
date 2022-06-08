@@ -12,6 +12,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;
+    mat4 prev_Proj_View;
     QuadArealignt qLight;
     uint frameCount;
      uint mode;  //denoising algorithm   1:raw  2:mvec 3:svgf 4:ours 5: ground truth

@@ -14,6 +14,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;
+    mat4 prev_Proj_View;
     QuadArealignt qLight;
     vec4 cameraPos;
     uint frameCount;
@@ -32,6 +33,7 @@ layout (binding = 9, r32f) uniform image2D historyDepthImage;
 layout (binding = 10, rgba32f) uniform image2D historyDirectIr;
 layout (binding = 11, rgba32f) uniform image2D historyIndIr;
 layout (binding = 12, rgba32f) uniform image2D historyIndAlbedo;
+layout (binding = 13, rgba32f) uniform image2D historyFinal;
 
 layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec3 fragNormal;
@@ -58,11 +60,10 @@ float w_pos(vec2 p,vec2 q);
 float w_lumin(vec2 p,vec2 q);
 vec4 variance(vec2 p);
 vec4 gaussian_filter(vec2 p);
-vec4 aTrous_indirectIr(vec2 p);
-vec4 aTrous_indirectAlbedo(vec2 p);
-vec4 aTrous_directIr(vec2 p);
 vec4 aTrous_directIr_5_5(vec2 p);
 vec4 aTrous_indIr_5_5(vec2 p);
+vec4 aTrous_indAlbedo_5_5(vec2 p);
+vec4 mvec_Spatial_Filter_directIr(vec2 p);
 
 void main() {
     vec3 directColor = vec3(0.0, 0.0, 0.0);
@@ -80,18 +81,32 @@ void main() {
     outColor=next_itr_Var;
     //imageStore(historyColorImages[6],ivec2(gl_FragCoord.xy),3.5*next_itr_Var);
 
-    outIndAlbedo= ubo.mode==4?aTrous_indirectAlbedo(gl_FragCoord.xy):imageLoad(historyColorImages[2], ivec2(gl_FragCoord.xy));
-    //imageStore(historyIndAlbedo, ivec2(gl_FragCoord.xy),outIndAlbedo);
+    if(ubo.mode==OURS){
+        outIndAlbedo=aTrous_indAlbedo_5_5(gl_FragCoord.xy);
+        imageStore(historyIndAlbedo, ivec2(gl_FragCoord.xy),outIndAlbedo);
+    }
+    else{
+        outIndAlbedo=imageLoad(historyIndAlbedo, ivec2(gl_FragCoord.xy));
+        imageStore(historyIndAlbedo, ivec2(gl_FragCoord.xy),outIndAlbedo);
+    }
 
-    if(ubo.mode==3 ||ubo.mode==4){
-            //direcIr=aTrous_directIr(gl_FragCoord.xy);
-            direcIr=aTrous_directIr_5_5(gl_FragCoord.xy);
-            indIr=aTrous_indIr_5_5(gl_FragCoord.xy);
-            outDirectIr=0.7*direcIr;
-            imageStore(historyColorImages[1], ivec2(gl_FragCoord.xy),direcIr);
-            imageStore(historyDirectIr, ivec2(gl_FragCoord.xy),direcIr);
-            imageStore(historyColorImages[3], ivec2(gl_FragCoord.xy),indIr);
-            outIndIr=0.6*indIr;
+    if(ubo.mode==SVGF ||ubo.mode==OURS){
+        //direcIr=aTrous_directIr(gl_FragCoord.xy);
+        direcIr=aTrous_directIr_5_5(gl_FragCoord.xy);
+        indIr=aTrous_indIr_5_5(gl_FragCoord.xy);
+        outDirectIr=0.7*direcIr;
+        imageStore(historyColorImages[1], ivec2(gl_FragCoord.xy),direcIr);
+        imageStore(historyDirectIr, ivec2(gl_FragCoord.xy),direcIr);
+        imageStore(historyColorImages[3], ivec2(gl_FragCoord.xy),indIr);
+        outIndIr=0.6*indIr;
+    }
+    else if(ubo.mode==MVEC){  //spatial filter for mvec
+        direcIr=mvec_Spatial_Filter_directIr(gl_FragCoord.xy);
+        indIr=imageLoad(historyColorImages[3], ivec2(gl_FragCoord.xy));
+        outDirectIr=direcIr;
+        outIndIr=indIr;
+        imageStore(historyDirectIr, ivec2(gl_FragCoord.xy),direcIr);
+        imageStore(historyColorImages[3], ivec2(gl_FragCoord.xy),indIr);
     }
     else{
         direcIr=imageLoad(historyDirectIr, ivec2(gl_FragCoord.xy));
@@ -101,7 +116,7 @@ void main() {
         imageStore(historyDirectIr, ivec2(gl_FragCoord.xy),direcIr);
         imageStore(historyColorImages[3], ivec2(gl_FragCoord.xy),indIr);
         
-    }   
+    }
 
     //outDirectIr=vec4(0.5,0.0,0.0,1.0);
 
@@ -125,6 +140,33 @@ vec4 gaussian_filter(vec2 p){
         }
     }
     return sum;
+}
+
+vec4 mvec_Spatial_Filter_directIr(vec2 p){
+    float level=3;
+    mat3 gaussian= mat3(1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0,
+                        1.0 / 8.0,  1.0 / 4.0, 1.0 / 8.0,
+                        1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0);
+    mat3 g_x=mat3(-1,0,1,
+                  -1,0,1,
+                  -1,0,1);
+    mat3 g_y=mat3(-1,-1,-1,
+                   0,0,0,
+                   1,1,1);
+    g_x*=level;
+    g_y*=level;
+    vec4 sum=vec4(0.0,0.0,0.0,0.0);
+    vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
+    vec4 outFilteredColor;
+    for(int i=0;i<3;i++){
+        for(int j=0;j<3;j++){
+            sum+=w_normal(p,ivec2(gl_FragCoord.x+g_x[i][j],gl_FragCoord.y+g_y[i][j]))*gaussian[i][j]*imageLoad(historyDirectIr, ivec2(gl_FragCoord.x+g_x[i][j],gl_FragCoord.y+g_y[i][j]));
+            Denominator+=w_normal(p,ivec2(gl_FragCoord.x+g_x[i][j],gl_FragCoord.y+g_y[i][j]))*gaussian[i][j];
+        }
+    }
+    outFilteredColor=sum/Denominator;
+    outFilteredColor.w=imageLoad(historyDirectIr, ivec2(gl_FragCoord.xy)).w;
+    return outFilteredColor;
 }
 
 float w_depth(vec2 p,vec2 q){   //weight of depth in the edge stop function in SVGF
@@ -267,148 +309,6 @@ float weight(vec2 p,vec2 q){
      //return  w_normal(p,q);
 }
 
-vec4 aTrous_indirectIr(vec2 p){
-    vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
-    vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
-
-    float level=4;
-    vec4 Ir_00 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level))*Ir_00;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
-
-    vec4 Ir_01 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.x,gl_FragCoord.y-level));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y-level))*Ir_01;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y-level));
-
-    vec4 Ir_02 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.x+level,gl_FragCoord.y-level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y-level))*Ir_02;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y-level));
-
-    vec4 Ir_10 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.x-level,gl_FragCoord.y));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y))*Ir_10;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y));
-
-    vec4 Ir_11 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.xy));
-    Numerator+=(1.0/4.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.xy))*Ir_11;
-    Denominator+=(1.0/4.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.xy));
-
-    vec4 Ir_12 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.x+level,gl_FragCoord.y));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y))*Ir_12;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y));
-
-    vec4 Ir_20 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.x-level,gl_FragCoord.y+level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y+level))*Ir_20;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y+level));
-
-    vec4 Ir_21 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.x,gl_FragCoord.y+level));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y+level))*Ir_21;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y+level));
-
-    vec4 Ir_22 = imageLoad(historyColorImages[3], ivec2(gl_FragCoord.x+level,gl_FragCoord.y+level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y+level))*Ir_22;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y+level));
-
-    //vec4 Ir=(1/4.0)*Ir_11+(1/8.0)*(Ir_01+Ir_10+Ir_12+Ir_21)+(1/16.0)*(Ir_00+Ir_02+Ir_20+Ir_22);
-
-    return Numerator/Denominator;
-}
-
-vec4 aTrous_indirectAlbedo(vec2 p){
-    vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
-    vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
-
-    float level=2;
-    vec4 Ir_00 = imageLoad(historyColorImages[2], ivec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level))*Ir_00;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
-
-    vec4 Ir_01 = imageLoad(historyColorImages[2], ivec2(gl_FragCoord.x,gl_FragCoord.y-level));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y-level))*Ir_01;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y-level));
-
-    vec4 Ir_02 = imageLoad(historyColorImages[2], ivec2(gl_FragCoord.x+level,gl_FragCoord.y-level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y-level))*Ir_02;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y-level));
-
-    vec4 Ir_10 = imageLoad(historyColorImages[2], ivec2(gl_FragCoord.x-level,gl_FragCoord.y));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y))*Ir_10;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y));
-
-    vec4 Ir_11 = imageLoad(historyColorImages[2], ivec2(gl_FragCoord.xy));
-    Numerator+=(1.0/4.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.xy))*Ir_11;
-    Denominator+=(1.0/4.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.xy));
-
-    vec4 Ir_12 = imageLoad(historyColorImages[2], ivec2(gl_FragCoord.x+level,gl_FragCoord.y));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y))*Ir_12;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y));
-
-    vec4 Ir_20 = imageLoad(historyColorImages[2], ivec2(gl_FragCoord.x-level,gl_FragCoord.y+level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y+level))*Ir_20;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y+level));
-
-    vec4 Ir_21 = imageLoad(historyColorImages[2], ivec2(gl_FragCoord.x,gl_FragCoord.y+level));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y+level))*Ir_21;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y+level));
-
-    vec4 Ir_22 = imageLoad(historyColorImages[2], ivec2(gl_FragCoord.x+level,gl_FragCoord.y+level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y+level))*Ir_22;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y+level));
-
-    //vec4 Ir=(1/4.0)*Ir_11+(1/8.0)*(Ir_01+Ir_10+Ir_12+Ir_21)+(1/16.0)*(Ir_00+Ir_02+Ir_20+Ir_22);
-
-    return Numerator/Denominator;
-}
-
-vec4 aTrous_directIr(vec2 p){
-    vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
-    vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
-
-    
-    float level=1;
-    vec4 Ir_00 = imageLoad(historyDirectIr, ivec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level))*Ir_00;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y-level));
-
-    vec4 Ir_01 = imageLoad(historyDirectIr, ivec2(gl_FragCoord.x,gl_FragCoord.y-level));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y-level))*Ir_01;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y-level));
-
-    vec4 Ir_02 = imageLoad(historyDirectIr, ivec2(gl_FragCoord.x+level,gl_FragCoord.y-level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y-level))*Ir_02;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y-level));
-
-    vec4 Ir_10 = imageLoad(historyDirectIr, ivec2(gl_FragCoord.x-level,gl_FragCoord.y));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y))*Ir_10;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y));
-
-    vec4 Ir_11 = imageLoad(historyDirectIr, ivec2(gl_FragCoord.xy));
-    Numerator+=(1.0/4.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.xy))*Ir_11;
-    Denominator+=(1.0/4.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.xy));
-
-    vec4 Ir_12 = imageLoad(historyDirectIr, ivec2(gl_FragCoord.x+level,gl_FragCoord.y));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y))*Ir_12;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y));
-
-    vec4 Ir_20 = imageLoad(historyDirectIr, ivec2(gl_FragCoord.x-level,gl_FragCoord.y+level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y+level))*Ir_20;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x-level,gl_FragCoord.y+level));
-
-    vec4 Ir_21 = imageLoad(historyDirectIr, ivec2(gl_FragCoord.x,gl_FragCoord.y+level));
-    Numerator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y+level))*Ir_21;
-    Denominator+=(1.0/8.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x,gl_FragCoord.y+level));
-
-    vec4 Ir_22 = imageLoad(historyDirectIr, ivec2(gl_FragCoord.x+level,gl_FragCoord.y+level));
-    Numerator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y+level))*Ir_22;
-    Denominator+=(1.0/16.0)*weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+level,gl_FragCoord.y+level));
-    
-
-
-    vec4 outTrous=Numerator/Denominator;
-    outTrous.w=Ir_11.w;
-
-    return outTrous;
-}
-
 vec4 aTrous_directIr_5_5(vec2 p){
     vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
     vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
@@ -441,6 +341,25 @@ vec4 aTrous_indIr_5_5(vec2 p){
             int h_idx=5*(2+j)+2+i;
             float w=weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+i*level,gl_FragCoord.y+j*level));
             Numerator+=h[h_idx]*w*imageLoad(historyIndIr, ivec2(gl_FragCoord.x+i*level,gl_FragCoord.y+j*level));
+            Denominator+=h[h_idx]*w;
+        }
+    }
+
+    vec4 outTrous=Numerator/Denominator;
+    outTrous.w=1.0;
+
+    return outTrous;
+}
+
+vec4 aTrous_indAlbedo_5_5(vec2 p){
+    vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
+    vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
+    float level=1;
+    for(int i=-2;i<=2;i++){
+        for(int j=-2;j<=2;j++){
+            int h_idx=5*(2+j)+2+i;
+            float w=weight(gl_FragCoord.xy,vec2(gl_FragCoord.x+i*level,gl_FragCoord.y+j*level));
+            Numerator+=h[h_idx]*w*imageLoad(historyIndAlbedo, ivec2(gl_FragCoord.x+i*level,gl_FragCoord.y+j*level));
             Denominator+=h[h_idx]*w;
         }
     }

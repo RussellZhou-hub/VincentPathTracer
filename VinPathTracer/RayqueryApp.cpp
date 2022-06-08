@@ -203,13 +203,11 @@ void RayQueryApp::mainLoop()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         //imgui commands
-        ImGui::ShowDemoWindow();
-
-        bool svgf;
+        bool demoWindow;
         int e;
         ImGui::Begin("My name is ImGui window");
         ImGui::Text("Hello there adventure!");
-        ImGui::Checkbox("svgf_box", &svgf);
+        ImGui::Checkbox("imgui_demo_box", &demoWindow);
         ImGui::RadioButton("raw image", &e, 0); ImGui::SameLine();
         ImGui::RadioButton("mvec", &e, 1); ImGui::SameLine();
         ImGui::RadioButton("svgf", &e, 2); ImGui::SameLine();
@@ -217,6 +215,10 @@ void RayQueryApp::mainLoop()
         ImGui::RadioButton("ground truth", &e, 4);
         ImGui::End();
         ubo.mode = e + 1;
+
+        if (demoWindow) {
+            ImGui::ShowDemoWindow();
+        }
 
         drawFrame();
         //ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[currentFrame]);
@@ -430,6 +432,7 @@ void RayQueryApp::createDescriptorSetLayout()
     bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));//historyDirectIr
     bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));//historyInDIr
     bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));//historyInDAlbedo
+    bindings.push_back(vkinit::descriptorSet_layout_bindings(bindings.size(), 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));//historyFinal
 
     VkDescriptorSetLayoutCreateInfo layoutInfo = vkinit::descriptorSetLayout_create_info(static_cast<uint32_t>(bindings.size()), bindings.data());
     VK_CHECK(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout), "failed to create descriptor set layout!");
@@ -476,6 +479,8 @@ void RayQueryApp::createDescriptorSets()
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &historyInDIr_ImageInfo));
         VkDescriptorImageInfo historyInDAlbedo_ImageInfo = vkinit::image_info(historyInDAlbedo.imageView);
         descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &historyInDAlbedo_ImageInfo));
+        VkDescriptorImageInfo historyFinal_ImageInfo = vkinit::image_info(historyFinal.imageView);
+        descriptorWrites.push_back(vkinit::writeDescriptorSets_info(nullptr, descriptorSets[i], descriptorWrites.size(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &historyFinal_ImageInfo));
         
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -522,6 +527,10 @@ void RayQueryApp::createAttachments()  //create color attachments not including 
     historyInDAlbedo.format = swapChainImageFormat;
     createImage(WIDTH, HEIGHT, historyInDAlbedo.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, historyInDAlbedo.image, historyInDAlbedo.imageMemory);
     historyInDAlbedo.imageView = createImageView(historyInDAlbedo.image, historyInDAlbedo.format, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    historyFinal.format = swapChainImageFormat;
+    createImage(WIDTH, HEIGHT, historyFinal.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, historyFinal.image, historyFinal.imageMemory);
+    historyFinal.imageView = createImageView(historyFinal.image, historyFinal.format, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void RayQueryApp::createFramebuffers()
@@ -822,7 +831,7 @@ void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
         //for (auto i = 1; i < 4; i++) {
         //    vkCmdCopyImage(commandBuffer, outPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
         //}
-        vkCmdCopyImage(commandBuffer, outPutAttachments[0].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[0].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+        //vkCmdCopyImage(commandBuffer, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, inPutAttachments[0].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
     }
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {

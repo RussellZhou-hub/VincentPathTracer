@@ -16,6 +16,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;
+    mat4 prev_Proj_View;
     QuadArealignt qLight;
     vec4 cameraPos;
     uint frameCount;
@@ -34,6 +35,7 @@ layout (binding = 9, r32f) uniform image2D historyDepthImage;
 layout (binding = 10, rgba32f) uniform image2D historyDirectIr;
 layout (binding = 11, rgba32f) uniform image2D historyIndIr;
 layout (binding = 12, rgba32f) uniform image2D historyIndAlbedo;
+layout (binding = 13, rgba32f) uniform image2D historyFinal;
 
 layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec3 fragNormal;

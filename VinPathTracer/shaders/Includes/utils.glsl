@@ -5,6 +5,12 @@
 
 #define SQRT_OF_TREE 1.7302 
 
+#define RAW_IMAGE    1
+#define MVEC         2
+#define SVGF         3
+#define OURS         4
+#define GROUND_TRUTH 5
+
 bool isLightSource(vec3 emission){
 	if(length(emission)>0.01) return true;
 	else return false;
@@ -68,6 +74,18 @@ vec2 getFragCoord(mat4 pv,vec3 pos){          //从世界坐标获取对应的上一帧里的屏
     clipPos.x*=WIDTH;
     clipPos.y*=HEIGHT;
     return floor(clipPos.xy)+0.5;
+}
+
+vec2 getFragCoord_for_tex(mat4 pv, vec3 pos) {          //从世界坐标获取对应的上一帧里的屏幕坐标
+    vec4 clipPos = pv * vec4(pos, 1.0);
+
+    clipPos /= clipPos.w;
+    //clipPos.y = -clipPos.y;
+    clipPos.xy += 1;
+    clipPos.xy /= 2;
+    clipPos.x *= WIDTH;
+    clipPos.y *= HEIGHT;
+    return floor(clipPos.xy) + 0.5;
 }
 
 float h[25] = float[](1.0 / 256.0, 1.0 / 64.0, 3.0 / 128.0, 1.0 / 64.0, 1.0 / 256.0,
