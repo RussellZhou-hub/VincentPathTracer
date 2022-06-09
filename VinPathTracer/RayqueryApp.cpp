@@ -342,10 +342,10 @@ void RayQueryApp::InitUBO()
     if (model_Path == "bathroom-blender") {
         camera.pos = glm::vec3(18.0,6.75,15.0);
         camera.front = glm::vec3(-0.78, -0.07, -0.6);
-        ubo.quadArealignt.A = glm::vec4(-0.35f, 6.67f, -6.46f, 1.0f);
-        ubo.quadArealignt.B = glm::vec4(1.83f, 6.43f, -6.3f, 1.0f);
-        ubo.quadArealignt.C = glm::vec4(1.41f, 4.3f, -6.2f, 1.0f);
-        ubo.quadArealignt.D = glm::vec4(-1.18f, 4.3f, -6.2f, 1.0f);
+        ubo.quadArealignt.A = glm::vec4(-1.68f, 7.75f, -6.38f, 1.0f);
+        ubo.quadArealignt.B = glm::vec4(0.69f, 7.75f, -6.46f, 1.0f);
+        ubo.quadArealignt.C = glm::vec4(0.76f, 4.75f, -6.46f, 1.0f);
+        ubo.quadArealignt.D = glm::vec4(-1.75f, 4.78f, -6.38f, 1.0f);
     }
 }
 
