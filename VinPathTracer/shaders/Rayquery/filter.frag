@@ -19,6 +19,7 @@ layout(binding = 0) uniform UniformBufferObject {
     vec4 cameraPos;
     uint frameCount;
     uint mode;  //denoising algorithm   1:raw  2:mvec 3:svgf 4:ours 5: ground truth
+    uint samples;  //spp
 } ubo;
 
 layout(binding = 1) uniform sampler2D texSampler;

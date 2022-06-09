@@ -19,6 +19,7 @@ layout(binding = 0) uniform UniformBufferObject {
     vec4 cameraPos;
     uint frameCount;
     uint mode;  //denoising algorithm   1:raw  2:mvec 3:svgf 4:ours 5: ground truth
+    uint samples;  //spp
 } ubo;
 
 layout(binding = 1) uniform sampler2D texSampler;
@@ -74,9 +75,14 @@ void main() {
     vec4 indIr=vec4(0.0,0.0,0.0,0.0);
     vec2 prev_pos=vec2(0.0,0.0);
     vec4 prev_color=vec4(0.0,0.0,0.0,0.0);
+    vec3 specular=vec3(0.3,0.3,0.3);
+    float specularRate=0.3;
     float weight_for_trust_History=0.8;
 
     surfaceColor=imageLoad(historyColorImages[0], ivec2(gl_FragCoord.xy)).xyz;
+    uint material_id=materialIndexBuffer.data[gl_PrimitiveID].material_id;
+    specular=materialBuffer.data[material_id].specular;
+    specularRate=specular.z;
     
     if(ubo.mode==OURS){
         outIndAlbedo=aTrous_indAlbedo_5_5(gl_FragCoord.xy);
@@ -106,6 +112,7 @@ void main() {
         directIr=mvec_Spatial_Filter_directIr(gl_FragCoord.xy).xyz;
         direcIr=imageLoad(historyDirectIr, ivec2(gl_FragCoord.xy));
         indIr=imageLoad(historyColorImages[3], ivec2(gl_FragCoord.xy));
+        indirectIr=indIr.xyz;
         outDirectIr=direcIr;
         outIndIr=indIr;
         imageStore(historyColorImages[1], ivec2(gl_FragCoord.xy),direcIr);
@@ -114,6 +121,7 @@ void main() {
     else{
         direcIr=imageLoad(historyDirectIr, ivec2(gl_FragCoord.xy));
         indIr=imageLoad(historyColorImages[3], ivec2(gl_FragCoord.xy));
+        indirectIr=indIr.xyz;
         directIr=direcIr.xyz;
         outDirectIr=direcIr;
         outIndIr=indIr;
@@ -128,18 +136,22 @@ void main() {
         vec4 curColor=vec4( direcIr.xyz*surfaceColor+0.2*indirectIr*indirectAlbedo+surfaceColor*0.05,1.0);
         prev_pos=getFragCoord_for_tex(ubo.prev_Proj_View,interpolatedPosition);
         prev_color=imageLoad(historyFinal, ivec2(prev_pos));
-        if((length(curColor-prev_color)>0.6&&direcIr.w==0.0)||ubo.frameCount<2 ){  //pixels in shadow
+        if((length(curColor-prev_color)>0.6&&direcIr.w==0.0)){  //pixels in shadow
             weight_for_trust_History=0.3;
         }
+        if(ubo.frameCount<2) weight_for_trust_History=0.0;
         prev_color=clamp(prev_color,max(vec4(0.0,0.0,0.0,0.0),prev_color-0.3),min(vec4(1.0,1.0,1.0,1.0),prev_color+0.3));
-        curColor=vec4( directIr*surfaceColor+0.2*indirectIr*indirectAlbedo+surfaceColor*0.05,1.0);
+        if(specularRate==0.99) curColor=vec4( 0.2*directIr*surfaceColor+indirectIr*indirectAlbedo+surfaceColor*0.05,1.0);
+        else curColor=vec4( directIr*surfaceColor+0.2*indirectIr*indirectAlbedo+surfaceColor*0.05,1.0);
         if(!isShadow) weight_for_trust_History=0.0;
         else prev_color=gaussian_filter_for_prevFinal(prev_pos);
         outColor=weight_for_trust_History*prev_color+(1-weight_for_trust_History)*curColor;
         imageStore(historyFinal, ivec2(gl_FragCoord.xy),outColor);
     }
     else{
-        outColor=vec4(directIr*surfaceColor+0.2*indirectIr*indirectAlbedo+surfaceColor*0.05,1.0);
+        if(specularRate>0.89) outColor=vec4( indirectIr*indirectAlbedo+surfaceColor*0.05,1.0);
+        else outColor=vec4( directIr*surfaceColor+0.2*indirectIr*indirectAlbedo+surfaceColor*0.05,1.0);
+        //outColor=vec4(directIr*surfaceColor+0.2*indirectIr*indirectAlbedo+surfaceColor*0.05,1.0);
         imageStore(historyFinal, ivec2(gl_FragCoord.xy),outColor);
     }
 

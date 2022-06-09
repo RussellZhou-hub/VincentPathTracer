@@ -30,8 +30,10 @@
 RayQueryApp::RayQueryApp()
 {
 	addRayQueryExtension();
-    setModelPath("sponza");
-    //setModelPath("bathroom-blender"); //camera.pos=vec3(11.19,9.25,20.89);
+    //setModelPath("sponza");
+    setModelPath("bathroom-blender"); //camera.pos=vec3(11.19,9.25,20.89);
+    InitUBO();
+    cameraMoveSpeed = 1.0;
     
     setShaderFileName("Rayquery/rayquery.vert.spv", "Rayquery/rayquery.frag.spv");
     //setShaderFileName("basic.vert.spv", "basic.frag.spv");
@@ -103,6 +105,7 @@ void RayQueryApp::init_imgui()
     //clear font textures from cpu data
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
+    demoWindow = false;
     //add the destroy the imgui created structures
     //vkDestroyDescriptorPool(device, imguiPool, nullptr);
 }
@@ -173,21 +176,21 @@ void RayQueryApp::mainLoop()
 
             const float cameraSpeed = 1000.0f * camera.getDeltaTime(glfwGetTime()); // adjust accordingly
             if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-                camera.pos += cameraSpeed * camera.front;
+                camera.pos += cameraMoveSpeed*cameraSpeed * camera.front;
                 ubo.frameCount = 1; //camera moved
             }
             if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-                camera.pos -= cameraSpeed * camera.front;
+                camera.pos -= cameraMoveSpeed * cameraSpeed * camera.front;
                 ubo.frameCount = 1; //camera moved
             }
 
             if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-                camera.pos -= glm::normalize(glm::cross(camera.front, camera.up)) * cameraSpeed;
+                camera.pos -= glm::normalize(glm::cross(camera.front, camera.up)) * cameraMoveSpeed * cameraSpeed;
                 ubo.frameCount = 1; //camera moved
             }
 
             if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-                camera.pos += glm::normalize(glm::cross(camera.front, camera.up)) * cameraSpeed;
+                camera.pos += glm::normalize(glm::cross(camera.front, camera.up)) * cameraMoveSpeed * cameraSpeed;
                 ubo.frameCount = 1; //camera moved
             }
 
@@ -203,18 +206,23 @@ void RayQueryApp::mainLoop()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         //imgui commands
-        bool demoWindow;
-        int e;
         ImGui::Begin("My name is ImGui window");
         ImGui::Text("Hello there adventure!");
         ImGui::Checkbox("imgui_demo_box", &demoWindow);
-        ImGui::RadioButton("raw image", &e, 0); ImGui::SameLine();
-        ImGui::RadioButton("mvec", &e, 1); ImGui::SameLine();
-        ImGui::RadioButton("svgf", &e, 2); ImGui::SameLine();
-        ImGui::RadioButton("ours", &e, 3); ImGui::SameLine();
-        ImGui::RadioButton("ground truth", &e, 4);
+        ImGui::RadioButton("raw image", &mode, 0); ImGui::SameLine();
+        ImGui::RadioButton("mvec", &mode, 1); ImGui::SameLine();
+        ImGui::RadioButton("svgf", &mode, 2); ImGui::SameLine();
+        ImGui::RadioButton("ours", &mode, 3); ImGui::SameLine();
+        ImGui::RadioButton("ground truth", &mode, 4);
+        if (ImGui::Button("Increase spp"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+            ubo.samples = ubo.samples >= 64 ? 64 : ubo.samples * 2;
+        ImGui::SameLine();
+        if (ImGui::Button("Decrease spp"))                            
+            ubo.samples = ubo.samples < 2 ? 1 : ubo.samples / 2;
+        ImGui::Text("spp is %d now!", ubo.samples);
+        ImGui::SliderFloat("Camera Move Speed", &cameraMoveSpeed, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
         ImGui::End();
-        ubo.mode = e + 1;
+        ubo.mode = mode + 1;
 
         if (demoWindow) {
             ImGui::ShowDemoWindow();
@@ -327,6 +335,18 @@ void RayQueryApp::addRayQueryExtension()
 void RayQueryApp::setModelPath(std::string path)
 {
     model_Path = path;
+}
+
+void RayQueryApp::InitUBO()
+{
+    if (model_Path == "bathroom-blender") {
+        camera.pos = glm::vec3(18.0,6.75,15.0);
+        camera.front = glm::vec3(-0.78, -0.07, -0.6);
+        ubo.quadArealignt.A = glm::vec4(-0.35f, 6.67f, -6.46f, 1.0f);
+        ubo.quadArealignt.B = glm::vec4(1.83f, 6.43f, -6.3f, 1.0f);
+        ubo.quadArealignt.C = glm::vec4(1.41f, 4.3f, -6.2f, 1.0f);
+        ubo.quadArealignt.D = glm::vec4(-1.18f, 4.3f, -6.2f, 1.0f);
+    }
 }
 
 void RayQueryApp::createLogicalDevice()

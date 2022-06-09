@@ -21,6 +21,7 @@ layout(binding = 0) uniform UniformBufferObject {
     vec4 cameraPos;
     uint frameCount;
     uint mode;  //denoising algorithm   1:raw  2:mvec 3:svgf 4:ours 5: ground truth
+    uint samples;  //spp
 } ubo;
 
 layout(binding = 1) uniform sampler2D texSampler;
@@ -98,7 +99,7 @@ void main() {
     
     vec3 directIr_final=vec3(0.0,0.0,0.0);
     int spp= ubo.mode==5?NUM_SAMPLE:1;
-    spp=1;
+    spp=int(ubo.samples);
     float w_sample=1.0/spp;
     for(int i=0;i<spp;i++){
         vec3 lightPosition= spp==1?lightPos:get_Random_QuadArea_Light_Pos(ubo.qLight.A.xyz,  ubo.qLight.B.xyz,  ubo.qLight.C.xyz, ubo.qLight.D.xyz, i,spp);
@@ -152,7 +153,7 @@ void main() {
         //secondary ray (or more ray)
         vec3 indirectIr_final=vec3(0.0,0.0,0.0);
         spp= ubo.mode==5?NUM_SAMPLE:1;
-        //spp=1;
+        spp=1;
         w_sample=1.0/spp;
         for(int j=0;j<spp;j++){
             if(spp>1) rayDirection=getUniformSampledSpecularLobeDir(ubo.cameraPos.xyz,interpolatedPosition.xyz,geometricNormal,j,spp);
@@ -204,7 +205,7 @@ void main() {
 
                 vec3 indirectIr_shadow_final=vec3(0.0,0.0,0.0);
                 spp= ubo.mode==5?NUM_SAMPLE:1;
-                //spp=1;
+                spp=int(ubo.samples);
                 w_sample=1.0/spp;
                 for(int i=0;i<spp;i++){
                     lightPosition= spp==1?lightPos:get_Random_QuadArea_Light_Pos(ubo.qLight.A.xyz,  ubo.qLight.B.xyz,  ubo.qLight.C.xyz, ubo.qLight.D.xyz, i,spp);

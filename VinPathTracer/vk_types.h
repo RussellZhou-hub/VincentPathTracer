@@ -37,6 +37,7 @@ struct UniformBufferObject {
     alignas(4) glm::vec4 cameraPos;
     alignas(4) uint32_t frameCount;
     alignas(4) uint32_t mode;  //denoising algorithm
+    alignas(4) uint32_t samples;  //sampling rate for GT
 };
 
 struct Texture {

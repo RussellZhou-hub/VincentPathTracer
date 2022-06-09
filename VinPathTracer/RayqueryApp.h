@@ -41,6 +41,7 @@ public:
 	void drawFrame();
 	void addRayQueryExtension();
 	void setModelPath(std::string path);
+	void InitUBO();
 	void createLogicalDevice();
 	void prepare();
 	void createDescriptorPool();
@@ -60,6 +61,10 @@ public:
 	ImGuiIO tmp;
 	ImGuiIO &io = tmp;
 	VkDescriptorPool imguiPool;
+	//imgui commands
+	bool demoWindow;
+	int mode;
+	float cameraMoveSpeed;
 
 	//attachment stuff
 	std::vector<Attachment> inPutAttachments;
