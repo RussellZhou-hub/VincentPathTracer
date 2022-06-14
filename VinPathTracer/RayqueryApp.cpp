@@ -106,6 +106,7 @@ void RayQueryApp::init_imgui()
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
     demoWindow = false;
+    gui = true;
     //add the destroy the imgui created structures
     //vkDestroyDescriptorPool(device, imguiPool, nullptr);
 }
@@ -152,6 +153,7 @@ void RayQueryApp::mainLoop()
 {
     init_imgui();
 
+    bool spaceIsPressed = false;
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
@@ -200,29 +202,37 @@ void RayQueryApp::mainLoop()
             if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) ubo.mode = 3;
             if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) ubo.mode = 4;
             if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) ubo.mode = 5;
+
+            if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) spaceIsPressed = true;
+            if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE && spaceIsPressed) {
+                gui = gui == false ? true : false;
+                spaceIsPressed = false;
+            }
         }
         // Start the Dear ImGui frame
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         //imgui commands
-        ImGui::Begin("My name is ImGui window");
-        ImGui::Text("Hello there adventure!");
-        ImGui::Checkbox("imgui_demo_box", &demoWindow);
-        ImGui::RadioButton("raw image", &mode, 0); ImGui::SameLine();
-        ImGui::RadioButton("mvec", &mode, 1); ImGui::SameLine();
-        ImGui::RadioButton("svgf", &mode, 2); ImGui::SameLine();
-        ImGui::RadioButton("ours", &mode, 3); ImGui::SameLine();
-        ImGui::RadioButton("ground truth", &mode, 4);
-        if (ImGui::Button("Increase spp"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-            ubo.samples = ubo.samples >= 64 ? 64 : ubo.samples * 2;
-        ImGui::SameLine();
-        if (ImGui::Button("Decrease spp"))                            
-            ubo.samples = ubo.samples < 2 ? 1 : ubo.samples / 2;
-        ImGui::Text("spp is %d now!", ubo.samples);
-        ImGui::SliderFloat("Camera Move Speed", &cameraMoveSpeed, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::End();
-        ubo.mode = mode + 1;
+        if (gui) {
+            ImGui::Begin("My name is ImGui window");
+            ImGui::Text("Hello there adventure!");
+            ImGui::Checkbox("imgui_demo_box", &demoWindow);
+            ImGui::RadioButton("raw image", &mode, 0); ImGui::SameLine();
+            ImGui::RadioButton("mvec", &mode, 1); ImGui::SameLine();
+            ImGui::RadioButton("svgf", &mode, 2); ImGui::SameLine();
+            ImGui::RadioButton("ours", &mode, 3); ImGui::SameLine();
+            ImGui::RadioButton("ground truth", &mode, 4);
+            if (ImGui::Button("Increase spp"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+                ubo.samples = ubo.samples >= 64 ? 64 : ubo.samples * 2;
+            ImGui::SameLine();
+            if (ImGui::Button("Decrease spp"))
+                ubo.samples = ubo.samples < 2 ? 1 : ubo.samples / 2;
+            ImGui::Text("spp is %d now!", ubo.samples);
+            ImGui::SliderFloat("Camera Move Speed", &cameraMoveSpeed, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+            ImGui::End();
+            ubo.mode = mode + 1;
+        }
 
         if (demoWindow) {
             ImGui::ShowDemoWindow();

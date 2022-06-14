@@ -237,7 +237,7 @@ vec4 aTrous_directIr_5_5(vec2 p){
 vec4 aTrous_indIr_5_5(vec2 p){
     vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
     vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
-    float level=1;
+    float level=3;
     for(int i=-2;i<=2;i++){
         for(int j=-2;j<=2;j++){
             int h_idx=5*(2+j)+2+i;
@@ -256,7 +256,7 @@ vec4 aTrous_indIr_5_5(vec2 p){
 vec4 aTrous_indAlbedo_5_5(vec2 p){
     vec4 Numerator=vec4(0.0,0.0,0.0,1.0);
     vec4 Denominator=vec4(0.0,0.0,0.0,1.0);
-    float level=1;
+    float level=3;
     for(int i=-2;i<=2;i++){
         for(int j=-2;j<=2;j++){
             int h_idx=5*(2+j)+2+i;

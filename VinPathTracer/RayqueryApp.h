@@ -65,6 +65,7 @@ public:
 	bool demoWindow;
 	int mode;
 	float cameraMoveSpeed;
+	bool gui;
 
 	//attachment stuff
 	std::vector<Attachment> inPutAttachments;
