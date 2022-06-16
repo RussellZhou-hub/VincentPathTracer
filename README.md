@@ -7,6 +7,6 @@ Raw:
 
 denoised:
 
-![](README.assets/sponza.png)
+![](readme.assets/sponza.png)
 
-![](README.assets/cmp_bathroom.png)
+![](readme.assets/cmp_bathroom.png)
