@@ -5,6 +5,8 @@
 
 #include <vulkan/vulkan.h>
 #include<string>
+#include <functional>
+#include <deque>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <vma/vk_mem_alloc.h>
@@ -74,4 +76,22 @@ struct Material {
     alignas(4) glm::vec3 specular; int padC;
     alignas(4) glm::vec3 emission; //int padD=1.0;
     int diffuse_idx;
+};
+
+struct DeletionQueue
+{
+    std::deque<std::function<void()>> deletors;
+
+    void push_function(std::function<void()>&& function) {
+        deletors.push_back(function);
+    }
+
+    void flush() {
+        // reverse iterate the deletion queue to execute all the functions
+        for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
+            (*it)(); //call the function
+        }
+
+        deletors.clear();
+    }
 };

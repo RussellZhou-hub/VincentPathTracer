@@ -217,6 +217,8 @@ public:
         auto app = reinterpret_cast<VkApplication*>(glfwGetWindowUserPointer(window));
         app->framebufferResized = true;
     }
+    DeletionQueue _mainDeletionQueue;
+
     void initWindow();
     void initVulkan();
     void setIcon();
