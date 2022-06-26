@@ -76,6 +76,9 @@ void RayQueryApp::init_imgui()
 
     
     VK_CHECK(vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiPool),"ImGui descriptorpool create");
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyDescriptorPool(device, imguiPool, nullptr);
+    });
 
 
     // 2: initialize imgui library
@@ -437,6 +440,9 @@ void RayQueryApp::createDescriptorPool()
 
     VkDescriptorPoolCreateInfo poolInfo = vkinit::descriptorPool_create_info(static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT), static_cast<uint32_t>(poolSizes.size()), poolSizes.data());
     VK_CHECK(vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool), "failed to create descriptor pool!");
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    });
 }
 
 void RayQueryApp::createDescriptorSetLayout()
@@ -466,6 +472,9 @@ void RayQueryApp::createDescriptorSetLayout()
 
     VkDescriptorSetLayoutCreateInfo layoutInfo = vkinit::descriptorSetLayout_create_info(static_cast<uint32_t>(bindings.size()), bindings.data());
     VK_CHECK(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout), "failed to create descriptor set layout!");
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+    });
 }
 
 void RayQueryApp::createDescriptorSets()
@@ -515,6 +524,9 @@ void RayQueryApp::createDescriptorSets()
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
+    _mainDeletionQueue.push_function([=]() {
+        vkFreeDescriptorSets(device, descriptorPool, static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT), descriptorSets.data());
+    });
 }
 
 void RayQueryApp::createAttachments()  //create color attachments not including depth attachment
@@ -581,6 +593,11 @@ void RayQueryApp::createFramebuffers()
             throw std::runtime_error("failed to create framebuffer!");
         }
     }
+    _mainDeletionQueue.push_function([=]() {
+        for (auto framebuffer : swapChainFramebuffers) {
+            vkDestroyFramebuffer(device, framebuffer, nullptr);
+        }
+    });
 }
 
 void RayQueryApp::createGraphicsPipeline()
@@ -638,6 +655,10 @@ void RayQueryApp::createGraphicsPipeline()
 
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyPipeline(device, graphicsPipeline, nullptr);
+        vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    });
 }
 
 void RayQueryApp::createGraphicsPipeline(Pipeline& pipeline, std::string vsName, std::string fsName)
@@ -695,6 +716,10 @@ void RayQueryApp::createGraphicsPipeline(Pipeline& pipeline, std::string vsName,
 
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyPipeline(device, pipeline.graphicsPipeline, nullptr);
+        vkDestroyPipelineLayout(device, pipeline.pipelineLayout, nullptr);
+    });
 }
 
 void RayQueryApp::createRenderPass()
@@ -729,6 +754,9 @@ void RayQueryApp::createRenderPass()
     if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
         throw std::runtime_error("failed to create render pass!");
     }
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyRenderPass(device, renderPass, nullptr);
+    });
 }
 
 void RayQueryApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
@@ -1097,6 +1125,9 @@ void RayQueryApp::createAccelerationStructure(AccelerationStructure& acceleratio
     accelerationStructureCreate_info.size = buildSizeInfo.accelerationStructureSize;
     accelerationStructureCreate_info.type = type;
     vkCreateAccelerationStructureKHR(device, &accelerationStructureCreate_info, nullptr, &accelerationStructure.handle);
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyAccelerationStructureKHR(device, accelerationStructure.handle,nullptr);
+    });
     // AS device address
     VkAccelerationStructureDeviceAddressInfoKHR accelerationDeviceAddressInfo{};
     accelerationDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;

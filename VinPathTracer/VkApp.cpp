@@ -669,31 +669,28 @@ void VkApplication::createTextureSampler() {
     VkPhysicalDeviceProperties properties{};
     vkGetPhysicalDeviceProperties(physicalDevice, &properties);
 
-    VkSamplerCreateInfo samplerInfo{};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+    VkSamplerCreateInfo samplerInfo=vkinit::sampler_create_info(VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        VK_TRUE, properties.limits.maxSamplerAnisotropy, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_FILTER_LINEAR, VK_FILTER_LINEAR);
     samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
     samplerInfo.compareEnable = VK_FALSE;
     samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
     if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
         throw std::runtime_error("failed to create texture sampler!");
     }
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroySampler(device, textureSampler, nullptr);
+    });
 }
 
 VkImageView VkApplication::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
     VkImageViewCreateInfo viewInfo = vkinit::view_ceate_info(image, format, aspectFlags);
     VkImageView imageView;
     VK_CHECK(vkCreateImageView(device, &viewInfo, nullptr, &imageView), "failed to create texture image view!");
-
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyImageView(device, imageView, nullptr);
+    });
     return imageView;
 }
 
@@ -1010,6 +1007,9 @@ void VkApplication::createDescriptorSets() {
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
+    _mainDeletionQueue.push_function([=]() {
+        vkFreeDescriptorSets(device, descriptorPool, static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT), descriptorSets.data());
+    });
 }
 
 void VkApplication::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
@@ -1085,6 +1085,10 @@ void VkApplication::createTextureImage(Texture& tex)
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyImage(device, tex.textureImage, nullptr);
+        vkFreeMemory(device, tex.textureImageMemory, nullptr);
+    });
 }
 
 void VkApplication::createTexture(Texture& tex)
@@ -1135,7 +1139,7 @@ void VkApplication::createTextureSampler(Texture& tex)
 
     VK_CHECK(vkCreateSampler(device, &samplerInfo, nullptr, &tex.textureSampler), "failed to create texture sampler!");
     _mainDeletionQueue.push_function([=]() {
-        vkDestroySampler(device, textureSampler, nullptr);
+        vkDestroySampler(device, tex.textureSampler, nullptr);
     });
 }
 
@@ -1189,6 +1193,10 @@ void VkApplication::createMaterialsBuffer()
 
     vkDestroyBuffer(device, materialStagingBuffer, NULL);
     vkFreeMemory(device, materialStagingBufferMemory, NULL);
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyBuffer(device, materialBuffer, nullptr);
+        vkFreeMemory(device, materialBufferMemory, nullptr);
+    });
 }
 
 void VkApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
