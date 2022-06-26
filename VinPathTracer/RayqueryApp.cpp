@@ -393,6 +393,9 @@ void RayQueryApp::createLogicalDevice()
     }
 
     VK_CHECK(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device), "failed to create logical device!");
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyDevice(device, nullptr);
+        });
 
     vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
@@ -1106,6 +1109,9 @@ void RayQueryApp::createAccelerationStructure(AccelerationStructure& acceleratio
     bufferCreateInfo.size = buildSizeInfo.accelerationStructureSize;
     bufferCreateInfo.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     VK_CHECK_RESULT(vkCreateBuffer(device, &bufferCreateInfo, nullptr, &accelerationStructure.buffer));
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyBuffer(device, accelerationStructure.buffer, nullptr);
+    });
     VkMemoryRequirements memoryRequirements{};
     vkGetBufferMemoryRequirements(device, accelerationStructure.buffer, &memoryRequirements);
     VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{};
@@ -1118,6 +1124,9 @@ void RayQueryApp::createAccelerationStructure(AccelerationStructure& acceleratio
     memoryAllocateInfo.memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     VK_CHECK_RESULT(vkAllocateMemory(device, &memoryAllocateInfo, nullptr, &accelerationStructure.memory));
     VK_CHECK_RESULT(vkBindBufferMemory(device, accelerationStructure.buffer, accelerationStructure.memory, 0));
+    _mainDeletionQueue.push_function([=]() {
+        vkFreeMemory(device, accelerationStructure.memory, nullptr);
+    });
     // Acceleration structure
     VkAccelerationStructureCreateInfoKHR accelerationStructureCreate_info{};
     accelerationStructureCreate_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
@@ -1148,6 +1157,9 @@ RayQueryApp::ScratchBuffer RayQueryApp::createScratchBuffer(VkDeviceSize size)
     // Buffer and memory
     VkBufferCreateInfo bufferCreateInfo=vkinit::buffer_create_info(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
     VK_CHECK_RESULT(vkCreateBuffer(device, &bufferCreateInfo, nullptr, &scratchBuffer.handle));
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyBuffer(device, scratchBuffer.handle, nullptr);
+    });
     VkMemoryRequirements memoryRequirements{};
     vkGetBufferMemoryRequirements(device, scratchBuffer.handle, &memoryRequirements);
     VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{};
@@ -1156,6 +1168,9 @@ RayQueryApp::ScratchBuffer RayQueryApp::createScratchBuffer(VkDeviceSize size)
     VkMemoryAllocateInfo memoryAllocateInfo = vkinit::memoryAllocate_info(memoryRequirements.size, findMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT));
     memoryAllocateInfo.pNext = &memoryAllocateFlagsInfo;
     VK_CHECK_RESULT(vkAllocateMemory(device, &memoryAllocateInfo, nullptr, &scratchBuffer.memory));
+    _mainDeletionQueue.push_function([=]() {
+        vkFreeMemory(device, scratchBuffer.memory, nullptr);
+    });
     VK_CHECK_RESULT(vkBindBufferMemory(device, scratchBuffer.handle, scratchBuffer.memory, 0));
     // Buffer device address
     VkBufferDeviceAddressInfoKHR bufferDeviceAddresInfo{};

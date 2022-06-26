@@ -713,6 +713,9 @@ void VkApplication::createImage(uint32_t width, uint32_t height, VkFormat format
     if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
         throw std::runtime_error("failed to create image!");
     }
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyImage(device, image, nullptr);
+    });
 
     VkMemoryRequirements memRequirements;
     vkGetImageMemoryRequirements(device, image, &memRequirements);
@@ -725,6 +728,9 @@ void VkApplication::createImage(uint32_t width, uint32_t height, VkFormat format
     if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate image memory!");
     }
+    _mainDeletionQueue.push_function([=]() {
+        vkFreeMemory(device, imageMemory, nullptr);
+    });
 
     vkBindImageMemory(device, image, imageMemory, 0);
 }
@@ -1015,12 +1021,18 @@ void VkApplication::createDescriptorSets() {
 void VkApplication::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
     VkBufferCreateInfo bufferInfo = vkinit::buffer_create_info(size, usage);
     VK_CHECK(vkCreateBuffer(device, &bufferInfo, nullptr, &buffer), "failed to create buffer!");
+    _mainDeletionQueue.push_function([=]() {
+        vkDestroyBuffer(device, buffer, nullptr);
+    });
 
     VkMemoryRequirements memRequirements;
     vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
 
     VkMemoryAllocateInfo allocInfo = vkinit::memoryAllocate_info(memRequirements.size, findMemoryType(memRequirements.memoryTypeBits, properties));
     VK_CHECK(vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory), "failed to allocate buffer memory!");
+    _mainDeletionQueue.push_function([=]() {
+        vkFreeMemory(device,bufferMemory, nullptr);
+    });
 
     vkBindBufferMemory(device, buffer, bufferMemory, 0);
 }
